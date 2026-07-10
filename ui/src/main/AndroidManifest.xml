@@ -9,4 +9,12 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!--
+        Story 1.2: live "you are here" marker (FR-2). Both requested together so the
+        system permission dialog offers the user "Precise"/"Approximate"; the app must
+        work correctly under either (see AndroidLocationProvider's degraded-accuracy path).
+    -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
 </manifest>

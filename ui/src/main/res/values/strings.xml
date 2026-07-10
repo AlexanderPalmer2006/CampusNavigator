@@ -6,4 +6,9 @@
     <string name="nav_favourites">Favourites</string>
     <string name="nav_settings">Settings</string>
     <string name="placeholder_coming_soon">Coming soon</string>
+    <string name="location_permission_rationale">Enable location so the app can find your position.</string>
+    <string name="location_permission_rationale_action">Enable</string>
+    <string name="location_accuracy_reduced">Location accuracy reduced.</string>
+    <string name="location_marker_description">Your location</string>
+    <string name="location_marker_description_degraded">Your location, accuracy reduced</string>
 </resources>

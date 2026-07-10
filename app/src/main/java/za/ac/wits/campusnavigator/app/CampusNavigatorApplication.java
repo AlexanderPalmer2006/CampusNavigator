@@ -3,9 +3,12 @@ package za.ac.wits.campusnavigator.app;
 import android.app.Application;
 import za.ac.wits.campusnavigator.data.local.CampusDatabase;
 import za.ac.wits.campusnavigator.data.repository.BuildingRepositoryImpl;
+import za.ac.wits.campusnavigator.domain.location.LocationProvider;
 import za.ac.wits.campusnavigator.domain.repository.BuildingRepository;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingsUseCase;
+import za.ac.wits.campusnavigator.ui.location.AndroidLocationProvider;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingsUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasLocationProvider;
 import za.ac.wits.campusnavigator.ui.map.MapLibreInitializer;
 
 /**
@@ -13,9 +16,11 @@ import za.ac.wits.campusnavigator.ui.map.MapLibreInitializer;
  * dependency graph is constructed here, by hand, in one file. Later stories add their own
  * wiring to this same class; keep it minimal, only what the current epic's stories need.
  */
-public final class CampusNavigatorApplication extends Application implements HasGetBuildingsUseCase {
+public final class CampusNavigatorApplication extends Application
+        implements HasGetBuildingsUseCase, HasLocationProvider {
 
     private GetBuildingsUseCase getBuildingsUseCase;
+    private LocationProvider locationProvider;
 
     @Override
     public void onCreate() {
@@ -28,10 +33,18 @@ public final class CampusNavigatorApplication extends Application implements Has
         CampusDatabase database = CampusDatabase.getInstance(this);
         BuildingRepository buildingRepository = new BuildingRepositoryImpl(database.buildingDao());
         getBuildingsUseCase = new GetBuildingsUseCase(buildingRepository);
+
+        // Exactly one instance, shared -- never re-instantiated per feature (AD-11).
+        locationProvider = new AndroidLocationProvider(this);
     }
 
     @Override
     public GetBuildingsUseCase getGetBuildingsUseCase() {
         return getBuildingsUseCase;
+    }
+
+    @Override
+    public LocationProvider getLocationProvider() {
+        return locationProvider;
     }
 }
