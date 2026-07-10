@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Material 3, done straight, one point of visual personality (DESIGN.md Brand & Style).
+        Tonal elevation only, no custom shadow work.
+    -->
+    <style name="Theme.CampusNavigator" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/accent</item>
+        <item name="colorOnPrimary">@color/surface_base</item>
+        <item name="android:colorBackground">@color/surface_base</item>
+        <item name="colorSurface">@color/surface_raised</item>
+        <item name="colorOnSurface">@color/ink_primary</item>
+    </style>
+</resources>

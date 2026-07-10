@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- DESIGN.md token set: light mode -->
+    <color name="surface_base">#FAFAF8</color>
+    <color name="surface_raised">#FFFFFF</color>
+    <color name="ink_primary">#1C1B1A</color>
+    <color name="ink_secondary">#5F5A54</color>
+    <color name="ink_disabled">#B0AAA2</color>
+    <color name="border_hairline">#E6E1D9</color>
+
+    <!--
+        Burnt-sienna accent: interim value from the design-direction debate, pending a
+        WCAG AA audit against the rendered map (not a flat swatch) across every interactive
+        state. Not yet locked; see DESIGN.md#Colors and Story 1.1 AC 5.
+    -->
+    <color name="accent">#A0522D</color>
+</resources>

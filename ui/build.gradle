@@ -1,0 +1,32 @@
+plugins {
+    id 'com.android.library'
+}
+
+android {
+    namespace 'za.ac.wits.campusnavigator.ui'
+    compileSdk 36
+
+    defaultConfig {
+        minSdk 23
+        targetSdk 36
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation project(':domain')
+
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.fragment:fragment:1.8.5'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel:2.11.0'
+    implementation 'androidx.lifecycle:lifecycle-livedata:2.11.0'
+    implementation 'com.google.android.material:material:1.13.0'
+
+    // MapLibre Native Android SDK -- BSD-2-Clause, actively maintained. Rejected osmdroid
+    // (archived Nov 2024) and Mapbox (bills per offline tile, proprietary post-v10).
+    implementation 'org.maplibre.gl:android-sdk:13.3.1'
+}

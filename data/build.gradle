@@ -1,0 +1,31 @@
+plugins {
+    id 'com.android.library'
+}
+
+android {
+    namespace 'za.ac.wits.campusnavigator.data'
+    compileSdk 36
+
+    defaultConfig {
+        minSdk 23
+        targetSdk 36
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation project(':domain')
+
+    // Room 2.8.4 (2.x line) -- NOT 3.0, which is Kotlin/KSP-only with no Java codegen path.
+    // `api` (not `implementation`): CampusDatabase's public signature extends RoomDatabase,
+    // so :app (which constructs/holds a CampusDatabase reference) needs Room's types on its
+    // own compile classpath transitively.
+    api 'androidx.room:room-runtime:2.8.4'
+    annotationProcessor 'androidx.room:room-compiler:2.8.4'
+
+    testImplementation 'junit:junit:4.13.2'
+}
