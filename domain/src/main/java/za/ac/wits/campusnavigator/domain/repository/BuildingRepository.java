@@ -2,6 +2,7 @@ package za.ac.wits.campusnavigator.domain.repository;
 
 import java.util.List;
 import za.ac.wits.campusnavigator.domain.model.Building;
+import za.ac.wits.campusnavigator.domain.model.BuildingDetails;
 
 /**
  * Repository seam between ViewModels/use cases and the data layer (ARCHITECTURE-SPINE.md
@@ -17,4 +18,11 @@ public interface BuildingRepository {
      * Result type, since there is no meaningful "expected failure" case for this read.
      */
     List<Building> getAllBuildings();
+
+    /**
+     * Returns the Building Info Page aggregate for one Building (FR-5, Story 2.1). A real
+     * I/O failure surfaces as an unchecked exception, same convention as
+     * {@link #getAllBuildings()}.
+     */
+    BuildingDetails getBuildingDetails(long buildingId);
 }

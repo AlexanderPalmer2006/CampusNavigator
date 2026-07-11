@@ -11,4 +11,8 @@
     <string name="location_accuracy_reduced">Location accuracy reduced.</string>
     <string name="location_marker_description">Your location</string>
     <string name="location_marker_description_degraded">Your location, accuracy reduced</string>
+    <string name="search_hint">Search buildings</string>
+    <string name="search_result_floor_hint">Room %1$s — estimated Floor %2$d.</string>
+    <string name="building_info_no_category_tags">No category tags</string>
+    <string name="building_info_load_failed">Couldn\'t load this building\'s details right now.</string>
 </resources>

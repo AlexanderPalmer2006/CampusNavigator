@@ -9,15 +9,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import za.ac.wits.campusnavigator.domain.location.LocationProvider;
 import za.ac.wits.campusnavigator.domain.model.Building;
 import za.ac.wits.campusnavigator.domain.model.Position;
+import za.ac.wits.campusnavigator.domain.search.BuildingSearchResult;
+import za.ac.wits.campusnavigator.domain.search.SearchBuildingsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingsUseCase;
 
 /**
- * Calls :domain's GetBuildingsUseCase only -- never a :data class directly
- * (ARCHITECTURE-SPINE.md AD-1). GetBuildingsUseCase reaches Room under the hood, which
- * forbids main-thread queries, so the call is dispatched off-thread here.
+ * Calls :domain's GetBuildingsUseCase/SearchBuildingsUseCase only -- never a :data class
+ * directly (ARCHITECTURE-SPINE.md AD-1). Both reach Room under the hood, which forbids
+ * main-thread queries, so every call is dispatched off-thread here.
  *
  * <p>Implements {@link LocationProvider.Listener} directly (rather than a private inner
  * class) so MapFragment can also call {@link #onPermissionDenied()} directly in the
@@ -30,11 +33,17 @@ public final class MapViewModel extends ViewModel implements LocationProvider.Li
 
     private final MutableLiveData<List<Building>> buildings = new MutableLiveData<>();
     private final MutableLiveData<LocationUiState> locationState = new MutableLiveData<>(LocationUiState.initial());
+    private final MutableLiveData<List<BuildingSearchResult>> searchResults =
+            new MutableLiveData<>(Collections.emptyList());
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final LocationProvider locationProvider;
+    private final SearchBuildingsUseCase searchBuildingsUseCase;
+    private final AtomicInteger searchRequestSequence = new AtomicInteger();
 
-    public MapViewModel(@NonNull GetBuildingsUseCase getBuildingsUseCase, @NonNull LocationProvider locationProvider) {
+    public MapViewModel(@NonNull GetBuildingsUseCase getBuildingsUseCase, @NonNull LocationProvider locationProvider,
+                         @NonNull SearchBuildingsUseCase searchBuildingsUseCase) {
         this.locationProvider = locationProvider;
+        this.searchBuildingsUseCase = searchBuildingsUseCase;
         locationProvider.addListener(this);
 
         executorService.execute(() -> {
@@ -55,6 +64,32 @@ public final class MapViewModel extends ViewModel implements LocationProvider.Li
 
     LiveData<LocationUiState> getLocationState() {
         return locationState;
+    }
+
+    LiveData<List<BuildingSearchResult>> getSearchResults() {
+        return searchResults;
+    }
+
+    /**
+     * Dispatched off-thread (search reads the bundled Room database). Stale results from an
+     * earlier, slower query are discarded if a newer search has since been issued -- the
+     * sequence number guards against them arriving out of order and overwriting a newer
+     * result (unlikely with this dataset's size, but cheap to guard against correctly).
+     */
+    void search(String query) {
+        int requestId = searchRequestSequence.incrementAndGet();
+        executorService.execute(() -> {
+            List<BuildingSearchResult> results;
+            try {
+                results = searchBuildingsUseCase.execute(query);
+            } catch (RuntimeException e) {
+                Log.e(TAG, "Search failed for query=" + query, e);
+                results = Collections.emptyList();
+            }
+            if (requestId == searchRequestSequence.get()) {
+                searchResults.postValue(results);
+            }
+        });
     }
 
     @Override

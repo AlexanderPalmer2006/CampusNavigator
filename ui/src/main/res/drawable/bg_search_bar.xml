@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DESIGN.md: search bar, fully rounded ({rounded.full}), surface_raised background. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/surface_raised" />
+    <corners android:radius="999dp" />
+</shape>

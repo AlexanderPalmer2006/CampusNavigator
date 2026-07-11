@@ -4,11 +4,16 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.PointF;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ListView;
 import android.widget.TextView;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -30,11 +35,14 @@ import org.maplibre.android.maps.Style;
 import za.ac.wits.campusnavigator.domain.location.LocationProvider;
 import za.ac.wits.campusnavigator.domain.model.Building;
 import za.ac.wits.campusnavigator.domain.model.Position;
+import za.ac.wits.campusnavigator.domain.search.BuildingSearchResult;
 import za.ac.wits.campusnavigator.ui.R;
+import za.ac.wits.campusnavigator.ui.search.BuildingSearchAdapter;
 
 /**
- * The Map (home) surface -- FR1, FR2. Renders a fully offline map with Building labels and
- * the live "you are here" marker visible at default zoom, per Story 1.1 AC 1 and Story 1.2.
+ * The Map (home) surface -- FR1, FR2, FR3, FR4. Renders a fully offline map with Building
+ * labels, the live "you are here" marker, and Building Search (Story 1.1 AC 1, Story 1.2,
+ * Story 2.1) visible at default zoom.
  *
  * All seven MapView lifecycle forwards are mandatory in Java -- skipping onStop/onDestroy
  * leaks the native renderer (see Story 1.1 Dev Notes / web research).
@@ -52,7 +60,7 @@ public final class MapFragment extends Fragment {
 
     private static final int DEFAULT_ZOOM = 16;
     private static final int CAMERA_BOUNDS_PADDING_PX = 96;
-    private static final float MARKER_TOUCH_TARGET_DP = 48f;
+    private static final float TOUCH_TARGET_DP = 48f;
 
     private MapView mapView;
     private FrameLayout labelOverlay;
@@ -61,11 +69,16 @@ public final class MapFragment extends Fragment {
     private final List<LabelView> labelViews = new ArrayList<>();
 
     private LocationProvider locationProvider;
+    private HasBuildingNavigation buildingNavigator;
     private MapViewModel viewModel;
     private LocationMarkerView locationMarkerView;
     private LatLng lastMarkerPosition;
     private Boolean lastAnnouncedDegraded;
     private ActivityResultLauncher<String[]> locationPermissionLauncher;
+
+    private EditText searchBar;
+    private ListView searchSuggestionsList;
+    private BuildingSearchAdapter searchAdapter;
 
     private static final class LabelView {
         final LatLng position;
@@ -97,6 +110,20 @@ public final class MapFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        // Reset per-view state explicitly: when this Fragment is restored via the back
+        // stack (Story 2.1's Building Info Page -> Back), FragmentManager reuses this SAME
+        // Fragment object -- it does not construct a new MapFragment -- so instance fields
+        // like cameraPositioned survive from the previous view unless cleared here. Without
+        // this reset, the brand-new MapView/MapLibreMap for this view creation never gets
+        // its camera positioned (the one-shot flag is already "spent"), and every building
+        // label projects onto MapLibre's un-positioned default camera, collapsing onto the
+        // same pixel. Found via on-device back-navigation testing, not caught by any
+        // "fresh MapFragment per tab visit" assumption from Stories 1.1/1.2, which held for
+        // plain tab switches (always `new MapFragment()`) but not for back-stack restores.
+        cameraPositioned = false;
+        lastMarkerPosition = null;
+        lastAnnouncedDegraded = null;
+
         mapView = view.findViewById(R.id.mapView);
         labelOverlay = view.findViewById(R.id.buildingLabelOverlay);
         mapView.onCreate(savedInstanceState);
@@ -104,18 +131,22 @@ public final class MapFragment extends Fragment {
 
         HasGetBuildingsUseCase buildingsProvider = (HasGetBuildingsUseCase) requireActivity();
         HasLocationProvider locationProviderHost = (HasLocationProvider) requireActivity();
+        HasSearchBuildingsUseCase searchProvider = (HasSearchBuildingsUseCase) requireActivity();
+        buildingNavigator = (HasBuildingNavigation) requireActivity();
         locationProvider = locationProviderHost.getLocationProvider();
 
-        MapViewModelFactory factory =
-                new MapViewModelFactory(buildingsProvider.getGetBuildingsUseCase(), locationProvider);
+        MapViewModelFactory factory = new MapViewModelFactory(buildingsProvider.getGetBuildingsUseCase(),
+                locationProvider, searchProvider.getSearchBuildingsUseCase());
         viewModel = new ViewModelProvider(this, factory).get(MapViewModel.class);
 
         locationMarkerView = createLocationMarkerView();
-        int touchTargetPx = (int) dpToPx(MARKER_TOUCH_TARGET_DP);
+        int touchTargetPx = (int) dpToPx(TOUCH_TARGET_DP);
         labelOverlay.addView(locationMarkerView, new FrameLayout.LayoutParams(touchTargetPx, touchTargetPx));
         // Hidden until a real position places it -- otherwise it flashes at (0,0), same
         // reasoning as the building-label flash fix in Story 1.1's review.
         locationMarkerView.setVisibility(View.INVISIBLE);
+
+        setUpSearch(view);
 
         mapView.getMapAsync(mapLibreMap -> {
             if (getView() == null) {
@@ -136,6 +167,43 @@ public final class MapFragment extends Fragment {
         });
     }
 
+    private void setUpSearch(@NonNull View view) {
+        searchBar = view.findViewById(R.id.searchBar);
+        searchSuggestionsList = view.findViewById(R.id.searchSuggestions);
+
+        searchAdapter = new BuildingSearchAdapter(requireContext(), result -> {
+            searchSuggestionsList.setVisibility(View.GONE);
+            buildingNavigator.showBuildingInfo(result.getBuilding().getId());
+        });
+        searchSuggestionsList.setAdapter(searchAdapter);
+
+        searchBar.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                // No debounce -- the seed dataset is tiny (5 buildings, local/offline),
+                // computing fuzzy match on every keystroke is cheap (Story 2.1 Task 4).
+                viewModel.search(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        });
+
+        viewModel.getSearchResults().observe(getViewLifecycleOwner(), this::renderSearchResults);
+    }
+
+    private void renderSearchResults(@Nullable List<BuildingSearchResult> results) {
+        searchAdapter.submitResults(results);
+        boolean hasQuery = searchBar.getText() != null && searchBar.getText().length() > 0;
+        boolean hasResults = results != null && !results.isEmpty();
+        searchSuggestionsList.setVisibility(hasQuery && hasResults ? View.VISIBLE : View.GONE);
+    }
+
     private LocationMarkerView createLocationMarkerView() {
         int accentColor = getResources().getColor(R.color.accent, requireContext().getTheme());
         int outlineColor = getResources().getColor(R.color.surface_raised, requireContext().getTheme());
@@ -152,6 +220,7 @@ public final class MapFragment extends Fragment {
         labelOverlay.removeAllViews();
         labelOverlay.addView(locationMarkerView);
         labelViews.clear();
+        int touchTargetPx = (int) dpToPx(TOUCH_TARGET_DP);
         LatLngBounds.Builder boundsBuilder = new LatLngBounds.Builder();
         for (Building building : buildings) {
             LatLng position = new LatLng(building.getLatitude(), building.getLongitude());
@@ -161,6 +230,18 @@ public final class MapFragment extends Fragment {
             label.setText(building.getName());
             label.setTextSize(12f);
             label.setTextColor(getResources().getColor(R.color.ink_primary, requireContext().getTheme()));
+            // AC 4 (Story 2.1): map-pin tap also opens the Building Info Page. Tap target
+            // stretched to 48dp minimum in both dimensions (DESIGN.md: "never smaller than
+            // 48dp regardless of visual size") via minHeight/minWidth + vertical centering
+            // -- the visible text stays its normal size, only the tappable footprint grows,
+            // same "small visible mark, larger touch box" idea as the location marker
+            // (Story 1.2).
+            label.setMinHeight(touchTargetPx);
+            label.setMinWidth(touchTargetPx);
+            label.setGravity(Gravity.CENTER);
+            label.setPadding((int) dpToPx(4f), 0, (int) dpToPx(4f), 0);
+            label.setContentDescription(building.getName());
+            label.setOnClickListener(v -> buildingNavigator.showBuildingInfo(building.getId()));
             // Hidden until the first repositionLabels() call places it correctly --
             // otherwise it flashes at the FrameLayout's default (0,0) for one frame.
             label.setVisibility(View.INVISIBLE);
@@ -253,7 +334,7 @@ public final class MapFragment extends Fragment {
             return;
         }
         PointF screenPoint = map.getProjection().toScreenLocation(lastMarkerPosition);
-        float halfTouchTargetPx = dpToPx(MARKER_TOUCH_TARGET_DP) / 2f;
+        float halfTouchTargetPx = dpToPx(TOUCH_TARGET_DP) / 2f;
         locationMarkerView.setX(screenPoint.x - halfTouchTargetPx);
         locationMarkerView.setY(screenPoint.y - halfTouchTargetPx);
         locationMarkerView.setVisibility(View.VISIBLE);

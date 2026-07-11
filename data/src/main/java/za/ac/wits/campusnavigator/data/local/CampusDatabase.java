@@ -13,8 +13,22 @@ import androidx.room.RoomDatabase;
  * is what actually satisfies AD-13's cold-start rule; populating rows via DAO inserts on
  * first launch would violate it just as surely as an un-copied mbtiles file would for the
  * map tiles.
+ *
+ * Version 2 (Story 2.1) adds CategoryTag/BuildingCategoryCrossRef/BuildingPhoto. No
+ * Migration class -- this is a bundled, pre-release reference dataset with no user-generated
+ * data to preserve, so a schema bump destructively rebuilds it from the fresh bundled asset
+ * (Review Findings: fixes a real `IllegalStateException` on any device with a prior version
+ * already installed, e.g. `adb install -r` without an uninstall first).
  */
-@Database(entities = {BuildingEntity.class}, version = 1, exportSchema = false)
+@Database(
+        entities = {
+                BuildingEntity.class,
+                CategoryTagEntity.class,
+                BuildingCategoryCrossRef.class,
+                BuildingPhotoEntity.class
+        },
+        version = 2,
+        exportSchema = false)
 public abstract class CampusDatabase extends RoomDatabase {
 
     private static volatile CampusDatabase instance;
@@ -30,6 +44,7 @@ public abstract class CampusDatabase extends RoomDatabase {
                                     CampusDatabase.class,
                                     "campus.db")
                             .createFromAsset("database/campus.db")
+                            .fallbackToDestructiveMigration()
                             .build();
                 }
             }

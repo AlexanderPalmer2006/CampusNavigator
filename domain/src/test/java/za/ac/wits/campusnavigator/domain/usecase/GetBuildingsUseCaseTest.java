@@ -9,29 +9,15 @@ import java.util.Collections;
 import java.util.List;
 import org.junit.Test;
 import za.ac.wits.campusnavigator.domain.model.Building;
-import za.ac.wits.campusnavigator.domain.repository.BuildingRepository;
+import za.ac.wits.campusnavigator.domain.repository.FakeBuildingRepository;
 
 public class GetBuildingsUseCaseTest {
-
-    /** Plain in-memory fake — :domain has no Android/Room dependency to mock against. */
-    private static class FakeBuildingRepository implements BuildingRepository {
-        private final List<Building> buildings;
-
-        FakeBuildingRepository(List<Building> buildings) {
-            this.buildings = buildings;
-        }
-
-        @Override
-        public List<Building> getAllBuildings() {
-            return buildings;
-        }
-    }
 
     @Test
     public void execute_returnsAllBuildingsFromRepository() {
         List<Building> seed = new ArrayList<>();
-        seed.add(new Building(1L, "FNB Building", -26.1908, 28.0261, "wits-main"));
-        seed.add(new Building(2L, "Robert Sobukwe Block", -26.1912, 28.0298, "wits-main"));
+        seed.add(new Building(1L, "FNB Building", -26.1908, 28.0261, "wits-main", "FNB", "Accountancy"));
+        seed.add(new Building(2L, "Robert Sobukwe Block", -26.1912, 28.0298, "wits-main", "RSB", null));
         GetBuildingsUseCase useCase = new GetBuildingsUseCase(new FakeBuildingRepository(seed));
 
         List<Building> result = useCase.execute();
@@ -53,8 +39,8 @@ public class GetBuildingsUseCaseTest {
 
     @Test
     public void building_equality_isBasedOnIdOnly() {
-        Building a = new Building(1L, "FNB Building", -26.1908, 28.0261, "wits-main");
-        Building b = new Building(1L, "Different Name Somehow", 0.0, 0.0, "wits-main");
+        Building a = new Building(1L, "FNB Building", -26.1908, 28.0261, "wits-main", "FNB", null);
+        Building b = new Building(1L, "Different Name Somehow", 0.0, 0.0, "wits-main", null, null);
 
         assertEquals("Buildings with the same id must be equal regardless of other fields", a, b);
     }

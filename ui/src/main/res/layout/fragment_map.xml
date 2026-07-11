@@ -23,4 +23,42 @@
         android:textColor="@color/ink_disabled"
         android:textSize="10sp" />
 
+    <!-- DESIGN.md: floating pill search bar, {spacing.4} (16dp) from the top edge. -->
+    <EditText
+        android:id="@+id/searchBar"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_gravity="top"
+        android:layout_margin="16dp"
+        android:elevation="2dp"
+        android:background="@drawable/bg_search_bar"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:hint="@string/search_hint"
+        android:textColor="@color/ink_primary"
+        android:textColorHint="@color/ink_secondary"
+        android:textSize="14sp"
+        android:inputType="text"
+        android:imeOptions="actionSearch"
+        android:maxLines="1"
+        android:singleLine="true" />
+    <!-- No contentDescription here deliberately (Review Findings): a static
+         contentDescription on an editable field overrides TalkBack's announcement of the
+         field's live typed value, so it would announce only "Search buildings" forever
+         instead of what the user actually typed. The hint text already covers the
+         unfocused/empty-state label. -->
+
+    <!-- Suggestions overlay: type-ahead only, no submit step (EXPERIENCE.md). -->
+    <ListView
+        android:id="@+id/searchSuggestions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="72dp"
+        android:layout_marginEnd="16dp"
+        android:divider="@null"
+        android:dividerHeight="8dp"
+        android:visibility="gone" />
+
 </FrameLayout>

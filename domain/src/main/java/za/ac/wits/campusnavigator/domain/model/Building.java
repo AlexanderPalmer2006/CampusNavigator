@@ -11,13 +11,18 @@ public final class Building {
     private final double latitude;
     private final double longitude;
     private final String campusId;
+    private final String code;
+    private final String facultyDepartment;
 
-    public Building(long id, String name, double latitude, double longitude, String campusId) {
+    public Building(long id, String name, double latitude, double longitude, String campusId,
+                     String code, String facultyDepartment) {
         this.id = id;
         this.name = name;
         this.latitude = latitude;
         this.longitude = longitude;
         this.campusId = campusId;
+        this.code = code;
+        this.facultyDepartment = facultyDepartment;
     }
 
     public long getId() {
@@ -43,6 +48,20 @@ public final class Building {
      */
     public String getCampusId() {
         return campusId;
+    }
+
+    /**
+     * Short abbreviation used in search alongside the full name (e.g. "FNB"), nullable.
+     * Building Codes are unique and non-prefixing (PRD FR-3) -- a data invariant maintained
+     * by the seed data, not enforced in code.
+     */
+    public String getCode() {
+        return code;
+    }
+
+    /** Nullable -- not every Building has an obvious faculty/department affiliation. */
+    public String getFacultyDepartment() {
+        return facultyDepartment;
     }
 
     @Override
