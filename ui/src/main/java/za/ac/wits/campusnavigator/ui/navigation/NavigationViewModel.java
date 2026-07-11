@@ -1,6 +1,7 @@
 package za.ac.wits.campusnavigator.ui.navigation;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
@@ -41,6 +42,7 @@ public final class NavigationViewModel extends ViewModel implements LocationProv
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
     private Position lastKnownPosition;
+    private String activeDestinationName;
 
     public NavigationViewModel(@NonNull ComputeRouteUseCase computeRouteUseCase, @NonNull LocationProvider locationProvider) {
         this.navigationSession = new NavigationSession(computeRouteUseCase);
@@ -52,6 +54,12 @@ public final class NavigationViewModel extends ViewModel implements LocationProv
         return activeRoute;
     }
 
+    /** Destination name of the active/last-started navigation, for accessibility labeling. */
+    @Nullable
+    public String getActiveDestinationName() {
+        return activeDestinationName;
+    }
+
     /**
      * @return false if no position is available yet -- the caller should show the
      * equivalent no-position messaging instead of starting navigation.
@@ -60,6 +68,7 @@ public final class NavigationViewModel extends ViewModel implements LocationProv
         if (lastKnownPosition == null) {
             return false;
         }
+        activeDestinationName = destination.getName();
         Position startPosition = lastKnownPosition;
         executorService.execute(() ->
                 navigationSession.start(destination, startPosition, activeRoute::postValue));
@@ -83,6 +92,15 @@ public final class NavigationViewModel extends ViewModel implements LocationProv
         // No longer have a valid position source -- next startNavigation() call correctly
         // reports "no position available" instead of using a stale, possibly-wrong fix.
         lastKnownPosition = null;
+        // A route already in progress can never recompute again without a position source
+        // -- clear it rather than leaving a stale line rendered with no path to updating.
+        // notFound() (not error()) deliberately: the route isn't "unavailable" (a routing
+        // failure), permission was revoked -- a distinct cause with its own existing
+        // messaging elsewhere (Story 1.2's permission-rationale prompt), so this silently
+        // clears the line rather than showing a misleading "no route available" Snackbar.
+        if (activeRoute.getValue() != null) {
+            activeRoute.postValue(Result.notFound());
+        }
     }
 
     @Override

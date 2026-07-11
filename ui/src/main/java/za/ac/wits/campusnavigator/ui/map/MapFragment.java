@@ -358,7 +358,9 @@ public final class MapFragment extends Fragment {
      * line; {@code Result.Error(NO_ROUTE_AVAILABLE)} clears any existing line and shows the
      * exact honest-failure microcopy (EXPERIENCE.md Voice and Tone), announced to TalkBack
      * once per error-state transition -- not on every identical recompute, same debounce
-     * idea as the degraded-accuracy announcement above.
+     * idea as the degraded-accuracy announcement above. {@code Result.NotFound} also clears
+     * the line silently (no Snackbar) -- used when the position source itself goes away
+     * (permission revoked) rather than a routing failure.
      */
     private void renderRoute(@Nullable Result<Route> result) {
         if (result instanceof Result.Success) {
@@ -369,13 +371,18 @@ public final class MapFragment extends Fragment {
             }
             currentRouteWaypoints = waypoints;
             lastRouteWasError = false;
+            String destinationName = navigationViewModel.getActiveDestinationName();
+            routeLineView.setContentDescription(destinationName == null
+                    ? null : getString(R.string.navigation_route_description, destinationName));
             repositionRouteLine();
             return;
         }
 
-        // No route to draw either way: Error(NO_ROUTE_AVAILABLE), or no navigation started
-        // yet (result == null) -- AC 2 requires no broken/empty line ever rendered.
+        // No route to draw either way: Error(NO_ROUTE_AVAILABLE), NotFound (permission
+        // revoked), or no navigation started yet (result == null) -- AC 2 requires no
+        // broken/empty line ever rendered.
         currentRouteWaypoints = new ArrayList<>();
+        routeLineView.setContentDescription(null);
         repositionRouteLine();
 
         if (result instanceof Result.Error) {

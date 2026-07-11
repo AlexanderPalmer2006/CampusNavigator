@@ -50,9 +50,13 @@ final class RouteLineView extends View {
         linePaint.setStrokeJoin(Paint.Join.ROUND);
 
         // The route line has no independent tap interaction in V1 (EXPERIENCE.md
-        // Interaction Primitives) -- excluded from the accessibility tree rather than
-        // announced as a focusable-but-inert element.
-        setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+        // Interaction Primitives), but EXPERIENCE.md's Accessibility Floor separately
+        // names the Walking Route among elements needing a TalkBack role+state label --
+        // non-interactivity and no-labeling-needed are not the same rule. Included in the
+        // accessibility tree as a non-clickable, announced element (contentDescription set
+        // by the caller via setPoints()/MapFragment), same pattern as LocationMarkerView.
+        setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
+        setClickable(false);
     }
 
     /** Screen-space points, already projected via the map's current camera. */

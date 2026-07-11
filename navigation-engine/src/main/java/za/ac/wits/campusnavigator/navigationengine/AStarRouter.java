@@ -60,6 +60,17 @@ public final class AStarRouter {
         return nearest;
     }
 
+    /** A queued node with its priority frozen at insertion time -- see {@link #runAStar}. */
+    private static final class QueueEntry {
+        final long nodeId;
+        final double priority;
+
+        QueueEntry(long nodeId, double priority) {
+            this.nodeId = nodeId;
+            this.priority = priority;
+        }
+    }
+
     private List<GraphNode> runAStar(List<GraphNode> nodes, List<GraphEdge> edges, GraphNode start, GraphNode goal) {
         Map<Long, GraphNode> nodesById = new HashMap<>();
         for (GraphNode node : nodes) {
@@ -68,6 +79,13 @@ public final class AStarRouter {
 
         Map<Long, List<GraphEdge>> adjacency = new HashMap<>();
         for (GraphEdge edge : edges) {
+            // No Room-level referential-integrity enforcement on Edge.from_node_id/
+            // to_node_id (EdgeEntity has no @ForeignKey) -- a dangling reference must
+            // degrade to "this edge doesn't exist" here, not NPE later when the id is
+            // looked up in nodesById during path reconstruction.
+            if (!nodesById.containsKey(edge.fromNodeId) || !nodesById.containsKey(edge.toNodeId)) {
+                continue;
+            }
             adjacency.computeIfAbsent(edge.fromNodeId, k -> new ArrayList<>()).add(edge);
             // Undirected -- register the reverse direction too, since a single row
             // represents a walkable connection both ways.
@@ -84,14 +102,20 @@ public final class AStarRouter {
         Set<Long> visited = new HashSet<>();
         gScore.put(start.id, 0.0);
 
-        PriorityQueue<Long> openSet = new PriorityQueue<>(Comparator.comparingDouble(
-                nodeId -> gScore.getOrDefault(nodeId, Double.MAX_VALUE)
-                        + Haversine.distanceMeters(nodesById.get(nodeId).latitude, nodesById.get(nodeId).longitude,
-                        goal.latitude, goal.longitude)));
-        openSet.add(start.id);
+        // Priority is computed once, at insertion, and frozen in the QueueEntry -- java.util
+        // .PriorityQueue's contract requires a queued element's comparison result to stay
+        // stable while it's enqueued, and gScore keeps mutating as relaxation proceeds. A
+        // live lookup (recomputing priority from the current gScore on every comparison,
+        // as before) can violate the heap invariant for entries already sitting in the
+        // queue. Standard lazy-deletion fix: push a new frozen-priority entry on every
+        // relaxation; the `visited` check below skips any stale duplicate once a node's
+        // true shortest distance has been finalized.
+        double startPriority = Haversine.distanceMeters(start.latitude, start.longitude, goal.latitude, goal.longitude);
+        PriorityQueue<QueueEntry> openSet = new PriorityQueue<>(Comparator.comparingDouble(e -> e.priority));
+        openSet.add(new QueueEntry(start.id, startPriority));
 
         while (!openSet.isEmpty()) {
-            long currentId = openSet.poll();
+            long currentId = openSet.poll().nodeId;
             if (currentId == goal.id) {
                 return reconstructPath(cameFrom, nodesById, goal.id);
             }
@@ -104,7 +128,10 @@ public final class AStarRouter {
                 if (tentativeG < gScore.getOrDefault(edge.toNodeId, Double.MAX_VALUE)) {
                     gScore.put(edge.toNodeId, tentativeG);
                     cameFrom.put(edge.toNodeId, currentId);
-                    openSet.add(edge.toNodeId);
+                    GraphNode toNode = nodesById.get(edge.toNodeId);
+                    double priority = tentativeG
+                            + Haversine.distanceMeters(toNode.latitude, toNode.longitude, goal.latitude, goal.longitude);
+                    openSet.add(new QueueEntry(edge.toNodeId, priority));
                 }
             }
         }

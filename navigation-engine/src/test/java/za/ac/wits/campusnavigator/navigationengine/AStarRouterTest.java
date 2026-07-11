@@ -99,4 +99,22 @@ public class AStarRouterTest {
         assertEquals(5, result.getWaypoints().size());
         assertEquals(0.001, result.getWaypoints().get(2).longitude, 0.0001);
     }
+
+    @Test
+    public void edgeReferencingUnknownNode_isIgnoredRatherThanCrashing() {
+        // No Room @ForeignKey enforcement on Edge.from_node_id/to_node_id -- a dangling
+        // reference (id 99 doesn't exist in `nodes`) must degrade to "that edge doesn't
+        // exist" instead of NPEing during path reconstruction.
+        List<GraphNode> nodes = Arrays.asList(
+                new GraphNode(1L, 0.0, 0.0),
+                new GraphNode(2L, 0.0, 0.001));
+        List<GraphEdge> edges = Arrays.asList(
+                new GraphEdge(1L, 99L, 50.0),
+                new GraphEdge(1L, 2L, 100.0));
+
+        PathResult result = router.findRoute(nodes, edges, 0.0, 0.0, 0.0, 0.001);
+
+        assertTrue(result.isFound());
+        assertEquals(4, result.getWaypoints().size()); // start + n1 + n2 + dest, via the valid edge
+    }
 }

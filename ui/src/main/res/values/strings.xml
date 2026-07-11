@@ -18,4 +18,5 @@
     <string name="start_navigation_button">Start Navigation</string>
     <string name="navigation_no_position_available">Still finding your location — try again in a moment.</string>
     <string name="navigation_no_route_available">No route available right now.</string>
+    <string name="navigation_route_description">Walking route to %1$s</string>
 </resources>
