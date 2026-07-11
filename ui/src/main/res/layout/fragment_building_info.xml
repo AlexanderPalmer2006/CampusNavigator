@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/surface_base">
@@ -51,6 +52,20 @@
                 android:scaleType="centerCrop"
                 android:contentDescription="@null" />
         </LinearLayout>
+
+        <!-- DESIGN.md: primary action button, accent-filled, {rounded.md} (12dp). Theme's
+             colorPrimary/colorOnPrimary already resolve to accent/surface_base (themes.xml),
+             so MaterialButton needs no explicit color overrides here. -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/startNavigationButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:minHeight="48dp"
+            android:text="@string/start_navigation_button"
+            android:textAllCaps="false"
+            android:visibility="gone"
+            app:cornerRadius="12dp" />
 
     </LinearLayout>
 </ScrollView>

@@ -24,6 +24,7 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import com.google.android.material.snackbar.Snackbar;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.maplibre.android.camera.CameraUpdateFactory;
@@ -35,8 +36,12 @@ import org.maplibre.android.maps.Style;
 import za.ac.wits.campusnavigator.domain.location.LocationProvider;
 import za.ac.wits.campusnavigator.domain.model.Building;
 import za.ac.wits.campusnavigator.domain.model.Position;
+import za.ac.wits.campusnavigator.domain.model.Route;
+import za.ac.wits.campusnavigator.domain.result.Result;
 import za.ac.wits.campusnavigator.domain.search.BuildingSearchResult;
 import za.ac.wits.campusnavigator.ui.R;
+import za.ac.wits.campusnavigator.ui.navigation.NavigationViewModel;
+import za.ac.wits.campusnavigator.ui.navigation.NavigationViewModelFactory;
 import za.ac.wits.campusnavigator.ui.search.BuildingSearchAdapter;
 
 /**
@@ -47,14 +52,18 @@ import za.ac.wits.campusnavigator.ui.search.BuildingSearchAdapter;
  * All seven MapView lifecycle forwards are mandatory in Java -- skipping onStop/onDestroy
  * leaks the native renderer (see Story 1.1 Dev Notes / web research).
  *
- * <p>Building labels and the location marker are drawn as native {@link View}s overlaid on
- * the MapView and repositioned on every camera move, rather than as MapLibre map layers. A
- * SymbolLayer's text-field requires a "glyphs" font-PBF source this offline-only style
- * doesn't have -- with no glyphs source, SymbolLayer text renders nothing, silently, only
- * caught by an actual on-device run (Story 1.1). The location marker follows the same
- * native-overlay approach deliberately, for the same proven-reliability reason and because a
- * real View gets genuine TalkBack semantics "for free" (Story 1.2 Dev Notes: Marker Rendering
- * Approach) -- MapLibre's built-in LocationComponent was evaluated and not used.</p>
+ * <p>Building labels, the location marker, and the Walking Route (Story 2.2 Task 6) are
+ * all drawn as native {@link View}s overlaid on the MapView and repositioned on every
+ * camera move, rather than as MapLibre map layers. A SymbolLayer's text-field requires a
+ * "glyphs" font-PBF source this offline-only style doesn't have -- with no glyphs source,
+ * SymbolLayer text renders nothing, silently, only caught by an actual on-device run
+ * (Story 1.1). The Walking Route hit the same class of silent failure with a plain
+ * LineLayer/GeoJsonSource -- confirmed via a deliberately oversized, high-contrast
+ * on-device test (not assumed) before falling back to the same native-overlay approach,
+ * consistent with why the location marker already uses it too: proven reliability against
+ * this app's minimal offline style.json, plus genuine TalkBack semantics "for free" for the
+ * marker (Story 1.2 Dev Notes: Marker Rendering Approach) -- MapLibre's built-in
+ * LocationComponent was evaluated and not used.</p>
  */
 public final class MapFragment extends Fragment {
 
@@ -71,9 +80,13 @@ public final class MapFragment extends Fragment {
     private LocationProvider locationProvider;
     private HasBuildingNavigation buildingNavigator;
     private MapViewModel viewModel;
+    private NavigationViewModel navigationViewModel;
     private LocationMarkerView locationMarkerView;
+    private RouteLineView routeLineView;
     private LatLng lastMarkerPosition;
+    private List<LatLng> currentRouteWaypoints = new ArrayList<>();
     private Boolean lastAnnouncedDegraded;
+    private Boolean lastRouteWasError;
     private ActivityResultLauncher<String[]> locationPermissionLauncher;
 
     private EditText searchBar;
@@ -122,7 +135,9 @@ public final class MapFragment extends Fragment {
         // plain tab switches (always `new MapFragment()`) but not for back-stack restores.
         cameraPositioned = false;
         lastMarkerPosition = null;
+        currentRouteWaypoints = new ArrayList<>();
         lastAnnouncedDegraded = null;
+        lastRouteWasError = null;
 
         mapView = view.findViewById(R.id.mapView);
         labelOverlay = view.findViewById(R.id.buildingLabelOverlay);
@@ -132,12 +147,27 @@ public final class MapFragment extends Fragment {
         HasGetBuildingsUseCase buildingsProvider = (HasGetBuildingsUseCase) requireActivity();
         HasLocationProvider locationProviderHost = (HasLocationProvider) requireActivity();
         HasSearchBuildingsUseCase searchProvider = (HasSearchBuildingsUseCase) requireActivity();
+        HasComputeRouteUseCase computeRouteProvider = (HasComputeRouteUseCase) requireActivity();
         buildingNavigator = (HasBuildingNavigation) requireActivity();
         locationProvider = locationProviderHost.getLocationProvider();
 
         MapViewModelFactory factory = new MapViewModelFactory(buildingsProvider.getGetBuildingsUseCase(),
                 locationProvider, searchProvider.getSearchBuildingsUseCase());
         viewModel = new ViewModelProvider(this, factory).get(MapViewModel.class);
+
+        // Activity-scoped -- the same instance a route may already have been started on
+        // from BuildingInfoFragment (Task 5); observing it here just picks up whatever
+        // state it's already in (Story 2.2 Dev Notes: "Resolved Design: NavigationViewModel").
+        NavigationViewModelFactory navigationFactory =
+                new NavigationViewModelFactory(computeRouteProvider.getComputeRouteUseCase(), locationProvider);
+        navigationViewModel = new ViewModelProvider(requireActivity(), navigationFactory).get(NavigationViewModel.class);
+
+        // Added before the location marker so the route line renders underneath it (and
+        // underneath the building labels added in renderBuildingLabels) -- match_parent
+        // since it draws an arbitrary path across the whole overlay, not a fixed small box.
+        routeLineView = createRouteLineView();
+        labelOverlay.addView(routeLineView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
         locationMarkerView = createLocationMarkerView();
         int touchTargetPx = (int) dpToPx(TOUCH_TARGET_DP);
@@ -163,6 +193,7 @@ public final class MapFragment extends Fragment {
                 }
                 viewModel.getBuildings().observe(getViewLifecycleOwner(), this::renderBuildingLabels);
                 viewModel.getLocationState().observe(getViewLifecycleOwner(), this::renderLocationState);
+                navigationViewModel.getActiveRoute().observe(getViewLifecycleOwner(), this::renderRoute);
             });
         });
     }
@@ -212,12 +243,22 @@ public final class MapFragment extends Fragment {
         return markerView;
     }
 
+    private RouteLineView createRouteLineView() {
+        int accentColor = getResources().getColor(R.color.accent, requireContext().getTheme());
+        int outlineColor = getResources().getColor(R.color.surface_raised, requireContext().getTheme());
+        return new RouteLineView(requireContext(), accentColor, outlineColor);
+    }
+
     private void renderBuildingLabels(@Nullable List<Building> buildings) {
         if (buildings == null || buildings.isEmpty() || map == null) {
             return;
         }
 
         labelOverlay.removeAllViews();
+        // Route line first so it renders underneath the location marker and the building
+        // labels added below it (removeAllViews() wipes every child, so both need
+        // re-adding here every time this method runs, not just on the first call).
+        labelOverlay.addView(routeLineView);
         labelOverlay.addView(locationMarkerView);
         labelViews.clear();
         int touchTargetPx = (int) dpToPx(TOUCH_TARGET_DP);
@@ -312,6 +353,46 @@ public final class MapFragment extends Fragment {
     }
 
     /**
+     * Observes the Activity-scoped NavigationViewModel (Task 5/6) -- null means no
+     * navigation has been started yet (nothing to draw); {@code Result.Success} draws the
+     * line; {@code Result.Error(NO_ROUTE_AVAILABLE)} clears any existing line and shows the
+     * exact honest-failure microcopy (EXPERIENCE.md Voice and Tone), announced to TalkBack
+     * once per error-state transition -- not on every identical recompute, same debounce
+     * idea as the degraded-accuracy announcement above.
+     */
+    private void renderRoute(@Nullable Result<Route> result) {
+        if (result instanceof Result.Success) {
+            Route route = ((Result.Success<Route>) result).getValue();
+            List<LatLng> waypoints = new ArrayList<>(route.getWaypoints().size());
+            for (Position waypoint : route.getWaypoints()) {
+                waypoints.add(new LatLng(waypoint.getLatitude(), waypoint.getLongitude()));
+            }
+            currentRouteWaypoints = waypoints;
+            lastRouteWasError = false;
+            repositionRouteLine();
+            return;
+        }
+
+        // No route to draw either way: Error(NO_ROUTE_AVAILABLE), or no navigation started
+        // yet (result == null) -- AC 2 requires no broken/empty line ever rendered.
+        currentRouteWaypoints = new ArrayList<>();
+        repositionRouteLine();
+
+        if (result instanceof Result.Error) {
+            if (!Boolean.TRUE.equals(lastRouteWasError)) {
+                View root = getView();
+                if (root != null) {
+                    Snackbar.make(root, R.string.navigation_no_route_available, Snackbar.LENGTH_LONG).show();
+                    root.announceForAccessibility(getString(R.string.navigation_no_route_available));
+                }
+            }
+            lastRouteWasError = true;
+        } else {
+            lastRouteWasError = false;
+        }
+    }
+
+    /**
      * Called on every camera move/idle so labels and the location marker track their
      * real-world position as the user pans/zooms (AC 2) without lagging behind mid-gesture,
      * and once right after the initial moveCamera above.
@@ -327,6 +408,23 @@ public final class MapFragment extends Fragment {
             labelView.view.setVisibility(View.VISIBLE);
         }
         repositionLocationMarker();
+        repositionRouteLine();
+    }
+
+    /** Re-projects the active route's waypoints to screen space on every camera move. */
+    private void repositionRouteLine() {
+        if (map == null || routeLineView == null) {
+            return;
+        }
+        if (currentRouteWaypoints.isEmpty()) {
+            routeLineView.setPoints(Collections.emptyList());
+            return;
+        }
+        List<PointF> screenPoints = new ArrayList<>(currentRouteWaypoints.size());
+        for (LatLng waypoint : currentRouteWaypoints) {
+            screenPoints.add(map.getProjection().toScreenLocation(waypoint));
+        }
+        routeLineView.setPoints(screenPoints);
     }
 
     private void repositionLocationMarker() {

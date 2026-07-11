@@ -8,11 +8,13 @@ import androidx.fragment.app.FragmentTransaction;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import za.ac.wits.campusnavigator.domain.location.LocationProvider;
 import za.ac.wits.campusnavigator.domain.search.SearchBuildingsUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.ComputeRouteUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.buildinginfo.BuildingInfoFragment;
 import za.ac.wits.campusnavigator.ui.common.PlaceholderFragment;
 import za.ac.wits.campusnavigator.ui.map.HasBuildingNavigation;
+import za.ac.wits.campusnavigator.ui.map.HasComputeRouteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasLocationProvider;
@@ -27,7 +29,7 @@ import za.ac.wits.campusnavigator.ui.map.MapFragment;
  */
 public final class MainActivity extends AppCompatActivity
         implements HasGetBuildingsUseCase, HasLocationProvider, HasSearchBuildingsUseCase,
-        HasGetBuildingDetailsUseCase, HasBuildingNavigation {
+        HasGetBuildingDetailsUseCase, HasBuildingNavigation, HasComputeRouteUseCase {
 
     private int selectedNavId;
 
@@ -101,6 +103,11 @@ public final class MainActivity extends AppCompatActivity
     @Override
     public LocationProvider getLocationProvider() {
         return ((CampusNavigatorApplication) getApplication()).getLocationProvider();
+    }
+
+    @Override
+    public ComputeRouteUseCase getComputeRouteUseCase() {
+        return ((CampusNavigatorApplication) getApplication()).getComputeRouteUseCase();
     }
 
     @Override

@@ -3,12 +3,16 @@ package za.ac.wits.campusnavigator.app;
 import android.app.Application;
 import za.ac.wits.campusnavigator.data.local.CampusDatabase;
 import za.ac.wits.campusnavigator.data.repository.BuildingRepositoryImpl;
+import za.ac.wits.campusnavigator.data.repository.RoutingRepositoryImpl;
 import za.ac.wits.campusnavigator.domain.location.LocationProvider;
 import za.ac.wits.campusnavigator.domain.repository.BuildingRepository;
+import za.ac.wits.campusnavigator.domain.repository.RoutingRepository;
 import za.ac.wits.campusnavigator.domain.search.SearchBuildingsUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.ComputeRouteUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.location.AndroidLocationProvider;
+import za.ac.wits.campusnavigator.ui.map.HasComputeRouteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasLocationProvider;
@@ -22,11 +26,12 @@ import za.ac.wits.campusnavigator.ui.map.MapLibreInitializer;
  */
 public final class CampusNavigatorApplication extends Application
         implements HasGetBuildingsUseCase, HasLocationProvider, HasSearchBuildingsUseCase,
-        HasGetBuildingDetailsUseCase {
+        HasGetBuildingDetailsUseCase, HasComputeRouteUseCase {
 
     private GetBuildingsUseCase getBuildingsUseCase;
     private SearchBuildingsUseCase searchBuildingsUseCase;
     private GetBuildingDetailsUseCase getBuildingDetailsUseCase;
+    private ComputeRouteUseCase computeRouteUseCase;
     private LocationProvider locationProvider;
 
     @Override
@@ -42,6 +47,9 @@ public final class CampusNavigatorApplication extends Application
         getBuildingsUseCase = new GetBuildingsUseCase(buildingRepository);
         searchBuildingsUseCase = new SearchBuildingsUseCase(buildingRepository);
         getBuildingDetailsUseCase = new GetBuildingDetailsUseCase(buildingRepository);
+
+        RoutingRepository routingRepository = new RoutingRepositoryImpl(database.routingDao());
+        computeRouteUseCase = new ComputeRouteUseCase(routingRepository);
 
         // Exactly one instance, shared -- never re-instantiated per feature (AD-11).
         locationProvider = new AndroidLocationProvider(this);
@@ -65,5 +73,10 @@ public final class CampusNavigatorApplication extends Application
     @Override
     public LocationProvider getLocationProvider() {
         return locationProvider;
+    }
+
+    @Override
+    public ComputeRouteUseCase getComputeRouteUseCase() {
+        return computeRouteUseCase;
     }
 }

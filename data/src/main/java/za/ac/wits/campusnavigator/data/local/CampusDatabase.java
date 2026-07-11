@@ -14,26 +14,31 @@ import androidx.room.RoomDatabase;
  * first launch would violate it just as surely as an un-copied mbtiles file would for the
  * map tiles.
  *
- * Version 2 (Story 2.1) adds CategoryTag/BuildingCategoryCrossRef/BuildingPhoto. No
- * Migration class -- this is a bundled, pre-release reference dataset with no user-generated
- * data to preserve, so a schema bump destructively rebuilds it from the fresh bundled asset
- * (Review Findings: fixes a real `IllegalStateException` on any device with a prior version
- * already installed, e.g. `adb install -r` without an uninstall first).
+ * Version 2 (Story 2.1) adds CategoryTag/BuildingCategoryCrossRef/BuildingPhoto. Version 3
+ * (Story 2.2) adds Node/Edge (the walkway routing graph). No Migration class -- this is a
+ * bundled, pre-release reference dataset with no user-generated data to preserve, so a
+ * schema bump destructively rebuilds it from the fresh bundled asset (Review Findings:
+ * fixes a real `IllegalStateException` on any device with a prior version already
+ * installed, e.g. `adb install -r` without an uninstall first).
  */
 @Database(
         entities = {
                 BuildingEntity.class,
                 CategoryTagEntity.class,
                 BuildingCategoryCrossRef.class,
-                BuildingPhotoEntity.class
+                BuildingPhotoEntity.class,
+                NodeEntity.class,
+                EdgeEntity.class
         },
-        version = 2,
+        version = 3,
         exportSchema = false)
 public abstract class CampusDatabase extends RoomDatabase {
 
     private static volatile CampusDatabase instance;
 
     public abstract BuildingDao buildingDao();
+
+    public abstract RoutingDao routingDao();
 
     public static CampusDatabase getInstance(Context context) {
         if (instance == null) {

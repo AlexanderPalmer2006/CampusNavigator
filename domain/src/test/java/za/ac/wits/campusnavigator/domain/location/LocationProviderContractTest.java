@@ -4,67 +4,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.junit.Test;
 import za.ac.wits.campusnavigator.domain.model.Position;
 
 /**
- * Verifies the {@link LocationProvider} listener-registration contract against a plain
- * in-memory fake -- the real implementation ({@code AndroidLocationProvider} in :ui) wraps
- * Android's location APIs and is verified on-device instead (see story Dev Notes: Testing
- * Standards). This fake also gives future :domain consumers (e.g. Epic 2's NavigationSession)
- * a ready test double, mirroring FakeBuildingRepository's role for GetBuildingsUseCaseTest.
+ * Verifies the {@link LocationProvider} listener-registration contract against
+ * {@link FakeLocationProvider} -- the real implementation ({@code AndroidLocationProvider}
+ * in :ui) wraps Android's location APIs and is verified on-device instead (see story Dev
+ * Notes: Testing Standards).
  */
 public class LocationProviderContractTest {
-
-    /** Minimal fake: no real GPS, just list-based fan-out to registered listeners. */
-    static final class FakeLocationProvider implements LocationProvider {
-        private final List<Listener> listeners = new ArrayList<>();
-        private boolean started;
-
-        @Override
-        public void start() {
-            started = true;
-        }
-
-        @Override
-        public void stop() {
-            started = false;
-        }
-
-        @Override
-        public void addListener(Listener listener) {
-            listeners.add(listener);
-        }
-
-        @Override
-        public void removeListener(Listener listener) {
-            listeners.remove(listener);
-        }
-
-        void emitPosition(Position position) {
-            for (Listener listener : listeners) {
-                listener.onPositionUpdate(position);
-            }
-        }
-
-        void emitAccuracyChanged(boolean degraded) {
-            for (Listener listener : listeners) {
-                listener.onAccuracyChanged(degraded);
-            }
-        }
-
-        void emitPermissionDenied() {
-            for (Listener listener : listeners) {
-                listener.onPermissionDenied();
-            }
-        }
-
-        boolean isStarted() {
-            return started;
-        }
-    }
 
     private static final class RecordingListener implements LocationProvider.Listener {
         Position lastPosition;

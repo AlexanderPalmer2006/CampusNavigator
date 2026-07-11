@@ -9,10 +9,17 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.snackbar.Snackbar;
 import java.util.List;
+import za.ac.wits.campusnavigator.domain.model.BuildingDetails;
 import za.ac.wits.campusnavigator.domain.model.CategoryTag;
 import za.ac.wits.campusnavigator.ui.R;
+import za.ac.wits.campusnavigator.ui.map.HasComputeRouteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasLocationProvider;
+import za.ac.wits.campusnavigator.ui.navigation.NavigationViewModel;
+import za.ac.wits.campusnavigator.ui.navigation.NavigationViewModelFactory;
 
 /**
  * The Building Info Page (FR-5): name, faculty/department, category tags, and the photo
@@ -23,6 +30,9 @@ import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
 public final class BuildingInfoFragment extends Fragment {
 
     private static final String ARG_BUILDING_ID = "buildingId";
+
+    @Nullable
+    private BuildingDetails currentDetails;
 
     public static BuildingInfoFragment newInstance(long buildingId) {
         BuildingInfoFragment fragment = new BuildingInfoFragment();
@@ -49,12 +59,38 @@ public final class BuildingInfoFragment extends Fragment {
                 new BuildingInfoViewModelFactory(provider.getGetBuildingDetailsUseCase(), buildingId);
         BuildingInfoViewModel viewModel = new ViewModelProvider(this, factory).get(BuildingInfoViewModel.class);
 
+        HasComputeRouteUseCase computeRouteProvider = (HasComputeRouteUseCase) requireActivity();
+        HasLocationProvider locationProviderHost = (HasLocationProvider) requireActivity();
+        NavigationViewModelFactory navigationFactory = new NavigationViewModelFactory(
+                computeRouteProvider.getComputeRouteUseCase(), locationProviderHost.getLocationProvider());
+        // Activity-scoped: the same instance BuildingInfoFragment and (after popping back)
+        // MapFragment both reach through requireActivity() -- a route started here must
+        // survive the pop-back-stack to the Map that renders it (Story 2.2 Dev Notes:
+        // "Resolved Design: NavigationViewModel (Activity-scoped) shape").
+        NavigationViewModel navigationViewModel =
+                new ViewModelProvider(requireActivity(), navigationFactory).get(NavigationViewModel.class);
+
         TextView nameView = view.findViewById(R.id.buildingName);
         TextView facultyView = view.findViewById(R.id.buildingFaculty);
         TextView categoryTagsView = view.findViewById(R.id.buildingCategoryTags);
         View photoSection = view.findViewById(R.id.photoSection);
+        MaterialButton startNavigationButton = view.findViewById(R.id.startNavigationButton);
+
+        startNavigationButton.setOnClickListener(v -> {
+            if (currentDetails == null) {
+                // Details haven't loaded yet (or failed to) -- nothing to navigate to.
+                return;
+            }
+            boolean started = navigationViewModel.startNavigation(currentDetails.getBuilding());
+            if (started) {
+                requireActivity().getSupportFragmentManager().popBackStack();
+            } else {
+                Snackbar.make(view, R.string.navigation_no_position_available, Snackbar.LENGTH_LONG).show();
+            }
+        });
 
         viewModel.getDetails().observe(getViewLifecycleOwner(), details -> {
+            currentDetails = details;
             if (details == null) {
                 // Lookup failed (or Building unexpectedly missing) -- degrade gracefully,
                 // no crash (Story 1.1/1.2's established try/catch-and-degrade pattern).
@@ -62,8 +98,10 @@ public final class BuildingInfoFragment extends Fragment {
                 facultyView.setVisibility(View.GONE);
                 categoryTagsView.setVisibility(View.GONE);
                 photoSection.setVisibility(View.GONE);
+                startNavigationButton.setVisibility(View.GONE);
                 return;
             }
+            startNavigationButton.setVisibility(View.VISIBLE);
 
             String name = details.getBuilding().getName();
             nameView.setText(name);
