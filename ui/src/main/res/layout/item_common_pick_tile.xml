@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DESIGN.md Common Pick tile: rounded.md (12dp), surface_raised background: reuses
+     bg_building_card.xml directly, same visual spec, no near-duplicate drawable needed.
+     Icon is the only Landmark-vs-Category differentiator (never color, DESIGN.md
+     Do's/Don'ts): Story 4.1 only renders Landmark Picks (pin glyph); Story 4.2 adds
+     category glyphs to this same layout. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="6dp"
+    android:minHeight="48dp"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@drawable/bg_building_card"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="16dp"
+    android:clickable="true"
+    android:focusable="true">
+
+    <TextView
+        android:id="@+id/pickIcon"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="26sp"
+        android:importantForAccessibility="no" />
+
+    <TextView
+        android:id="@+id/pickLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:textColor="@color/ink_primary"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/pickKind"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textColor="@color/ink_secondary"
+        android:textSize="10sp" />
+
+</LinearLayout>

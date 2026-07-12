@@ -12,14 +12,18 @@ import za.ac.wits.campusnavigator.domain.usecase.ComputeRouteUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingsUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.GetLandmarkPicksUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.SetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.buildinginfo.BuildingInfoFragment;
 import za.ac.wits.campusnavigator.ui.common.PlaceholderFragment;
+import za.ac.wits.campusnavigator.ui.commonpicks.CommonPicksFragment;
+import za.ac.wits.campusnavigator.ui.map.HasBottomNavigation;
 import za.ac.wits.campusnavigator.ui.map.HasBuildingNavigation;
 import za.ac.wits.campusnavigator.ui.map.HasComputeRouteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingsUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasGetLandmarkPicksUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasLocationProvider;
 import za.ac.wits.campusnavigator.ui.map.HasSearchBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasSetAccessibilityPreferenceUseCase;
@@ -28,15 +32,18 @@ import za.ac.wits.campusnavigator.ui.settings.SettingsFragment;
 
 /**
  * Hosts the 4-tab bottom navigation shell (EXPERIENCE.md Information Architecture, Story
- * 1.1 AC 3). Map has real content; Settings has real content since Story 3.1; Common
- * Picks/Favourites still show a placeholder until their own epics (4, 5) fill them in.
- * Also hosts the Building Info Page (Story 2.1) as a contextual, back-stacked destination
- * reached from the Map tab, not a nav tab itself.
+ * 1.1 AC 3). Map has real content; Settings has real content since Story 3.1; Common Picks
+ * has real content since Story 4.1; Favourites still shows a placeholder until its own
+ * epic (5) fills it in. Also hosts the Building Info Page (Story 2.1) as a contextual,
+ * back-stacked destination reached from the Map tab, not a nav tab itself.
  */
 public final class MainActivity extends AppCompatActivity
         implements HasGetBuildingsUseCase, HasLocationProvider, HasSearchBuildingsUseCase,
         HasGetBuildingDetailsUseCase, HasBuildingNavigation, HasComputeRouteUseCase,
-        HasGetAccessibilityPreferenceUseCase, HasSetAccessibilityPreferenceUseCase {
+        HasGetAccessibilityPreferenceUseCase, HasSetAccessibilityPreferenceUseCase,
+        HasGetLandmarkPicksUseCase, HasBottomNavigation {
+
+    private BottomNavigationView bottomNavView;
 
     private int selectedNavId;
 
@@ -50,8 +57,8 @@ public final class MainActivity extends AppCompatActivity
             showFragment(new MapFragment(), false);
         }
 
-        BottomNavigationView bottomNav = findViewById(R.id.bottomNav);
-        bottomNav.setOnItemSelectedListener(item -> {
+        bottomNavView = findViewById(R.id.bottomNav);
+        bottomNavView.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == selectedNavId) {
                 return true;
@@ -64,14 +71,28 @@ public final class MainActivity extends AppCompatActivity
                 selectedNavId = id;
                 showFragment(new SettingsFragment(), false);
                 return true;
-            } else if (id == R.id.nav_common_picks
-                    || id == R.id.nav_favourites) {
+            } else if (id == R.id.nav_common_picks) {
+                selectedNavId = id;
+                showFragment(new CommonPicksFragment(), false);
+                return true;
+            } else if (id == R.id.nav_favourites) {
                 selectedNavId = id;
                 showFragment(new PlaceholderFragment(), false);
                 return true;
             }
             return false;
         });
+    }
+
+    /**
+     * Story 4.1: tapping a Common Pick tile starts navigation and must land the user on the
+     * Map tab, where the route actually renders (Story 2.2 Task 6) -- reuses the same
+     * selection logic (including selectedNavId bookkeeping and the already-selected no-op
+     * guard above) rather than a Fragment performing its own FragmentTransaction.
+     */
+    @Override
+    public void selectMapTab() {
+        bottomNavView.setSelectedItemId(R.id.nav_map);
     }
 
     /**
@@ -128,6 +149,11 @@ public final class MainActivity extends AppCompatActivity
     @Override
     public SetAccessibilityPreferenceUseCase getSetAccessibilityPreferenceUseCase() {
         return ((CampusNavigatorApplication) getApplication()).getSetAccessibilityPreferenceUseCase();
+    }
+
+    @Override
+    public GetLandmarkPicksUseCase getGetLandmarkPicksUseCase() {
+        return ((CampusNavigatorApplication) getApplication()).getGetLandmarkPicksUseCase();
     }
 
     @Override

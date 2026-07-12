@@ -27,7 +27,7 @@ public class ComputeRouteUseCaseTest {
         ComputeRouteUseCase useCase = new ComputeRouteUseCase(new FakeRoutingRepository(nodes, edges));
 
         Position currentPosition = new Position(-26.1908, 28.0261, 8.0f);
-        Building destination = new Building(2L, "Robert Sobukwe Block", -26.1912, 28.0298, "wits-main", "RSB", null);
+        Building destination = new Building(2L, "Robert Sobukwe Block", -26.1912, 28.0298, "wits-main", "RSB", null, false);
 
         Result<Route> result = useCase.execute(currentPosition, destination, false);
 
@@ -46,7 +46,7 @@ public class ComputeRouteUseCaseTest {
         ComputeRouteUseCase useCase = new ComputeRouteUseCase(new FakeRoutingRepository(nodes, edges));
 
         Position currentPosition = new Position(0.0, 0.0, 8.0f);
-        Building destination = new Building(2L, "Far Building", 1.0, 1.0, "wits-main", "FAR", null);
+        Building destination = new Building(2L, "Far Building", 1.0, 1.0, "wits-main", "FAR", null, false);
 
         Result<Route> result = useCase.execute(currentPosition, destination, false);
 
@@ -60,7 +60,7 @@ public class ComputeRouteUseCaseTest {
                 new ComputeRouteUseCase(new FakeRoutingRepository(new ArrayList<>(), new ArrayList<>()));
 
         Position currentPosition = new Position(0.0, 0.0, 8.0f);
-        Building destination = new Building(1L, "Anywhere", 1.0, 1.0, "wits-main", "ANY", null);
+        Building destination = new Building(1L, "Anywhere", 1.0, 1.0, "wits-main", "ANY", null, false);
 
         Result<Route> result = useCase.execute(currentPosition, destination, false);
 
@@ -81,7 +81,7 @@ public class ComputeRouteUseCaseTest {
         ComputeRouteUseCase useCase = new ComputeRouteUseCase(new FakeRoutingRepository(nodes, edges));
 
         Position currentPosition = new Position(0.0, 0.0, 8.0f);
-        Building destination = new Building(2L, "Destination", 0.0, 0.003, "wits-main", "DEST", null);
+        Building destination = new Building(2L, "Destination", 0.0, 0.003, "wits-main", "DEST", null, false);
 
         Result<Route> result = useCase.execute(currentPosition, destination, true);
 
@@ -101,7 +101,7 @@ public class ComputeRouteUseCaseTest {
         ComputeRouteUseCase useCase = new ComputeRouteUseCase(new FakeRoutingRepository(nodes, edges));
 
         Position currentPosition = new Position(0.0, 0.0, 8.0f);
-        Building destination = new Building(2L, "Destination", 0.0, 0.001, "wits-main", "DEST", null);
+        Building destination = new Building(2L, "Destination", 0.0, 0.001, "wits-main", "DEST", null, false);
 
         Result<Route> result = useCase.execute(currentPosition, destination, true);
 

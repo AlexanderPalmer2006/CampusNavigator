@@ -19,11 +19,11 @@ public class SearchBuildingsUseCaseTest {
 
     private static SearchBuildingsUseCase newUseCase() {
         List<Building> seed = new ArrayList<>();
-        seed.add(new Building(1L, "FNB Building (Accountancy)", -26.1908, 28.0261, "wits-main", "FNB", "Accountancy"));
-        seed.add(new Building(2L, "Robert Sobukwe Block", -26.1912, 28.0298, "wits-main", "RSB", null));
-        seed.add(new Building(3L, "Great Hall", -26.1904, 28.0285, "wits-main", "GH", null));
-        seed.add(new Building(4L, "Central Library", -26.1922, 28.0302, "wits-main", "LIB", null));
-        seed.add(new Building(5L, "Origins Centre", -26.1896, 28.0309, "wits-main", "ORIG", null));
+        seed.add(new Building(1L, "FNB Building (Accountancy)", -26.1908, 28.0261, "wits-main", "FNB", "Accountancy", false));
+        seed.add(new Building(2L, "Robert Sobukwe Block", -26.1912, 28.0298, "wits-main", "RSB", null, false));
+        seed.add(new Building(3L, "Great Hall", -26.1904, 28.0285, "wits-main", "GH", null, true));
+        seed.add(new Building(4L, "Central Library", -26.1922, 28.0302, "wits-main", "LIB", null, true));
+        seed.add(new Building(5L, "Origins Centre", -26.1896, 28.0309, "wits-main", "ORIG", null, true));
         return new SearchBuildingsUseCase(new FakeBuildingRepository(seed));
     }
 

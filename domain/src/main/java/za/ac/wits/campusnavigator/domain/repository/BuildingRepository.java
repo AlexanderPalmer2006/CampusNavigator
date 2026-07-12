@@ -20,6 +20,13 @@ public interface BuildingRepository {
     List<Building> getAllBuildings();
 
     /**
+     * Returns every Building curated as a "Landmark Pick" (FR-8, Story 4.1) -- never null,
+     * an empty list means none are curated. Same "empty list is a valid state, real I/O
+     * failure throws" convention as {@link #getAllBuildings()}.
+     */
+    List<Building> getLandmarkPicks();
+
+    /**
      * Returns the Building Info Page aggregate for one Building (FR-5, Story 2.1). A real
      * I/O failure surfaces as an unchecked exception, same convention as
      * {@link #getAllBuildings()}.

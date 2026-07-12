@@ -48,7 +48,7 @@ public class NavigationSessionTest {
     }
 
     private Building destination() {
-        return new Building(2L, "Robert Sobukwe Block", -26.1912, 28.0298, "wits-main", "RSB", null);
+        return new Building(2L, "Robert Sobukwe Block", -26.1912, 28.0298, "wits-main", "RSB", null, false);
     }
 
     /** A direct stair edge plus a step-free detour, so toggling avoidStairs changes the result. */

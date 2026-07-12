@@ -15,11 +15,12 @@ import androidx.room.RoomDatabase;
  * map tiles.
  *
  * Version 2 (Story 2.1) adds CategoryTag/BuildingCategoryCrossRef/BuildingPhoto. Version 3
- * (Story 2.2) adds Node/Edge (the walkway routing graph). No Migration class -- this is a
- * bundled, pre-release reference dataset with no user-generated data to preserve, so a
- * schema bump destructively rebuilds it from the fresh bundled asset (Review Findings:
- * fixes a real `IllegalStateException` on any device with a prior version already
- * installed, e.g. `adb install -r` without an uninstall first).
+ * (Story 2.2) adds Node/Edge (the walkway routing graph). Version 4 (Story 4.1) adds
+ * Building.isLandmarkPick. No Migration class -- this is a bundled, pre-release reference
+ * dataset with no user-generated data to preserve, so a schema bump destructively rebuilds
+ * it from the fresh bundled asset (Review Findings: fixes a real `IllegalStateException` on
+ * any device with a prior version already installed, e.g. `adb install -r` without an
+ * uninstall first).
  */
 @Database(
         entities = {
@@ -30,7 +31,7 @@ import androidx.room.RoomDatabase;
                 NodeEntity.class,
                 EdgeEntity.class
         },
-        version = 3,
+        version = 4,
         exportSchema = false)
 public abstract class CampusDatabase extends RoomDatabase {
 

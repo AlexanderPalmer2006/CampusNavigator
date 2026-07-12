@@ -15,12 +15,14 @@ import za.ac.wits.campusnavigator.domain.usecase.ComputeRouteUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingsUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.GetLandmarkPicksUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.SetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.location.AndroidLocationProvider;
 import za.ac.wits.campusnavigator.ui.map.HasComputeRouteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingsUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasGetLandmarkPicksUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasLocationProvider;
 import za.ac.wits.campusnavigator.ui.map.HasSearchBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasSetAccessibilityPreferenceUseCase;
@@ -34,7 +36,7 @@ import za.ac.wits.campusnavigator.ui.map.MapLibreInitializer;
 public final class CampusNavigatorApplication extends Application
         implements HasGetBuildingsUseCase, HasLocationProvider, HasSearchBuildingsUseCase,
         HasGetBuildingDetailsUseCase, HasComputeRouteUseCase, HasGetAccessibilityPreferenceUseCase,
-        HasSetAccessibilityPreferenceUseCase {
+        HasSetAccessibilityPreferenceUseCase, HasGetLandmarkPicksUseCase {
 
     private GetBuildingsUseCase getBuildingsUseCase;
     private SearchBuildingsUseCase searchBuildingsUseCase;
@@ -42,6 +44,7 @@ public final class CampusNavigatorApplication extends Application
     private ComputeRouteUseCase computeRouteUseCase;
     private GetAccessibilityPreferenceUseCase getAccessibilityPreferenceUseCase;
     private SetAccessibilityPreferenceUseCase setAccessibilityPreferenceUseCase;
+    private GetLandmarkPicksUseCase getLandmarkPicksUseCase;
     private LocationProvider locationProvider;
 
     @Override
@@ -57,6 +60,7 @@ public final class CampusNavigatorApplication extends Application
         getBuildingsUseCase = new GetBuildingsUseCase(buildingRepository);
         searchBuildingsUseCase = new SearchBuildingsUseCase(buildingRepository);
         getBuildingDetailsUseCase = new GetBuildingDetailsUseCase(buildingRepository);
+        getLandmarkPicksUseCase = new GetLandmarkPicksUseCase(buildingRepository);
 
         RoutingRepository routingRepository = new RoutingRepositoryImpl(database.routingDao());
         computeRouteUseCase = new ComputeRouteUseCase(routingRepository);
@@ -105,5 +109,10 @@ public final class CampusNavigatorApplication extends Application
     @Override
     public SetAccessibilityPreferenceUseCase getSetAccessibilityPreferenceUseCase() {
         return setAccessibilityPreferenceUseCase;
+    }
+
+    @Override
+    public GetLandmarkPicksUseCase getGetLandmarkPicksUseCase() {
+        return getLandmarkPicksUseCase;
     }
 }

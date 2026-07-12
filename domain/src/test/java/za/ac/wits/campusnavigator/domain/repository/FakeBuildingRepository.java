@@ -24,6 +24,17 @@ public final class FakeBuildingRepository implements BuildingRepository {
     }
 
     @Override
+    public List<Building> getLandmarkPicks() {
+        List<Building> picks = new java.util.ArrayList<>();
+        for (Building building : buildings) {
+            if (building.isLandmarkPick()) {
+                picks.add(building);
+            }
+        }
+        return picks;
+    }
+
+    @Override
     public BuildingDetails getBuildingDetails(long buildingId) {
         for (Building building : buildings) {
             if (building.getId() == buildingId) {

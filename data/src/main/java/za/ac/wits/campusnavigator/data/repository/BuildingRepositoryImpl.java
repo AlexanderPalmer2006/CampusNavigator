@@ -33,6 +33,16 @@ public final class BuildingRepositoryImpl implements BuildingRepository {
     }
 
     @Override
+    public List<Building> getLandmarkPicks() {
+        List<BuildingEntity> entities = buildingDao.getLandmarkPicks();
+        List<Building> buildings = new ArrayList<>(entities.size());
+        for (BuildingEntity entity : entities) {
+            buildings.add(toDomain(entity));
+        }
+        return buildings;
+    }
+
+    @Override
     public BuildingDetails getBuildingDetails(long buildingId) {
         BuildingEntity entity = buildingDao.getById(buildingId);
         if (entity == null) {
@@ -51,6 +61,6 @@ public final class BuildingRepositoryImpl implements BuildingRepository {
 
     private static Building toDomain(BuildingEntity entity) {
         return new Building(entity.id, entity.name, entity.latitude, entity.longitude,
-                entity.campusId, entity.code, entity.facultyDepartment);
+                entity.campusId, entity.code, entity.facultyDepartment, entity.isLandmarkPick);
     }
 }

@@ -13,9 +13,10 @@ public final class Building {
     private final String campusId;
     private final String code;
     private final String facultyDepartment;
+    private final boolean isLandmarkPick;
 
     public Building(long id, String name, double latitude, double longitude, String campusId,
-                     String code, String facultyDepartment) {
+                     String code, String facultyDepartment, boolean isLandmarkPick) {
         this.id = id;
         this.name = name;
         this.latitude = latitude;
@@ -23,6 +24,7 @@ public final class Building {
         this.campusId = campusId;
         this.code = code;
         this.facultyDepartment = facultyDepartment;
+        this.isLandmarkPick = isLandmarkPick;
     }
 
     public long getId() {
@@ -62,6 +64,16 @@ public final class Building {
     /** Nullable -- not every Building has an obvious faculty/department affiliation. */
     public String getFacultyDepartment() {
         return facultyDepartment;
+    }
+
+    /**
+     * Curated flag (Story 4.1) marking this Building as a "Landmark Pick" tile on the
+     * Common Picks tab -- an author-set curation decision, unrelated to (and independent
+     * of) any {@link CategoryTag} the same Building might also carry. A Building can be a
+     * Landmark Pick, carry the descriptive "landmark" CategoryTag, both, or neither.
+     */
+    public boolean isLandmarkPick() {
+        return isLandmarkPick;
     }
 
     @Override

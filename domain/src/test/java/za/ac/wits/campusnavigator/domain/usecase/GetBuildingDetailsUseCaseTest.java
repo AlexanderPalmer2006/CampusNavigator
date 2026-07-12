@@ -16,7 +16,7 @@ public class GetBuildingDetailsUseCaseTest {
     @Test
     public void execute_returnsDetailsForKnownBuilding() {
         List<Building> seed = new ArrayList<>();
-        seed.add(new Building(1L, "Central Library", -26.1922, 28.0302, "wits-main", "LIB", null));
+        seed.add(new Building(1L, "Central Library", -26.1922, 28.0302, "wits-main", "LIB", null, true));
         GetBuildingDetailsUseCase useCase = new GetBuildingDetailsUseCase(new FakeBuildingRepository(seed));
 
         BuildingDetails details = useCase.execute(1L);

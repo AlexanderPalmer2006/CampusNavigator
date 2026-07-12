@@ -16,8 +16,8 @@ public class GetBuildingsUseCaseTest {
     @Test
     public void execute_returnsAllBuildingsFromRepository() {
         List<Building> seed = new ArrayList<>();
-        seed.add(new Building(1L, "FNB Building", -26.1908, 28.0261, "wits-main", "FNB", "Accountancy"));
-        seed.add(new Building(2L, "Robert Sobukwe Block", -26.1912, 28.0298, "wits-main", "RSB", null));
+        seed.add(new Building(1L, "FNB Building", -26.1908, 28.0261, "wits-main", "FNB", "Accountancy", false));
+        seed.add(new Building(2L, "Robert Sobukwe Block", -26.1912, 28.0298, "wits-main", "RSB", null, false));
         GetBuildingsUseCase useCase = new GetBuildingsUseCase(new FakeBuildingRepository(seed));
 
         List<Building> result = useCase.execute();
@@ -39,8 +39,8 @@ public class GetBuildingsUseCaseTest {
 
     @Test
     public void building_equality_isBasedOnIdOnly() {
-        Building a = new Building(1L, "FNB Building", -26.1908, 28.0261, "wits-main", "FNB", null);
-        Building b = new Building(1L, "Different Name Somehow", 0.0, 0.0, "wits-main", null, null);
+        Building a = new Building(1L, "FNB Building", -26.1908, 28.0261, "wits-main", "FNB", null, false);
+        Building b = new Building(1L, "Different Name Somehow", 0.0, 0.0, "wits-main", null, null, true);
 
         assertEquals("Buildings with the same id must be equal regardless of other fields", a, b);
     }

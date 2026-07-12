@@ -13,6 +13,9 @@ public interface BuildingDao {
     @Query("SELECT * FROM Building WHERE id = :buildingId")
     BuildingEntity getById(long buildingId);
 
+    @Query("SELECT * FROM Building WHERE is_landmark_pick = 1")
+    List<BuildingEntity> getLandmarkPicks();
+
     @Query("SELECT CategoryTag.* FROM CategoryTag "
             + "INNER JOIN BuildingCategoryCrossRef ON CategoryTag.id = BuildingCategoryCrossRef.category_tag_id "
             + "WHERE BuildingCategoryCrossRef.building_id = :buildingId")

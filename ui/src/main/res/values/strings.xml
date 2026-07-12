@@ -22,4 +22,7 @@
     <string name="settings_accessibility_preference_label">Always avoid stairs</string>
     <string name="route_accessible_label">Accessible route</string>
     <string name="navigation_no_accessible_route">No accessible route found to this building.</string>
+    <string name="common_picks_title">Common Picks</string>
+    <string name="common_pick_landmark_kind">Landmark Pick</string>
+    <string name="common_pick_tile_description">%1$s, %2$s</string>
 </resources>
