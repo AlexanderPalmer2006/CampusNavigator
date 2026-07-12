@@ -26,6 +26,12 @@ public class AStarRouterTest {
         assertTrue(result.isFound());
         // start point + node1 + node2 + dest point
         assertEquals(4, result.getWaypoints().size());
+        // Start/dest coincide exactly with node1/node2 -- both snap legs are 0, so the
+        // total is exactly the traversed edge's own distanceMeters (Story 4.2, AD-7):
+        // proves getTotalDistanceMeters() reports the real edge-weighted cost A* itself
+        // minimized, not a Haversine-of-waypoints recomputation that could silently
+        // diverge from it for a real-world edge that isn't a straight line.
+        assertEquals(350.0, result.getTotalDistanceMeters(), 0.01);
     }
 
     @Test
@@ -43,6 +49,9 @@ public class AStarRouterTest {
 
         assertTrue(result.isFound());
         assertEquals(5, result.getWaypoints().size()); // start + n1 + n2 + n3 + dest
+        // Sum of both traversed edges, not a recomputed Haversine of the (here,
+        // deliberately collinear) waypoint coordinates -- see the test above.
+        assertEquals(200.0, result.getTotalDistanceMeters(), 0.01);
     }
 
     @Test
@@ -139,6 +148,12 @@ public class AStarRouterTest {
         PathResult accessible = router.findRoute(nodes, edges, 0.0, 0.0, 0.0, 0.003, true);
         assertTrue(accessible.isFound());
         assertEquals(5, accessible.getWaypoints().size()); // start + n1 + n3 + n2 + dest
+        // The detour's real distance (100+100=200) is longer than the direct edge's own
+        // distanceMeters (50) -- confirms getTotalDistanceMeters() reflects the actual
+        // detoured path taken, not the straight-line distance between start and dest
+        // (which a naive Haversine(start, dest) shortcut would wrongly report as ~333m
+        // for neither path -- this asserts the real per-edge-summed value instead).
+        assertEquals(200.0, accessible.getTotalDistanceMeters(), 0.01);
     }
 
     @Test

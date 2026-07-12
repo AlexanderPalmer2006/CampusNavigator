@@ -58,6 +58,16 @@ public final class CommonPicksAdapter extends BaseAdapter {
         return picks.get(position);
     }
 
+    /**
+     * Story 4.1 returned the underlying {@code Building}'s real database id here; that no
+     * longer generalizes cleanly once a tile can be either a {@code Building} or a
+     * {@code CategoryTag} (Story 4.2), so this now returns the plain grid position instead
+     * (Review Findings, 2026-07-12). Harmless either way: {@link #hasStableIds()} is never
+     * overridden (defaults to {@code false}), so Android never actually reads this value
+     * for view-recycling/selection identity today -- but if {@code hasStableIds(true)} is
+     * ever turned on in the future, this would need real per-kind stable ids again (e.g.
+     * the Building id for a LANDMARK tile, a distinct negative range for CATEGORY tiles).
+     */
     @Override
     public long getItemId(int position) {
         return position;

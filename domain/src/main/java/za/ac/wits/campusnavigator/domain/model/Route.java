@@ -14,10 +14,16 @@ import java.util.List;
  * was actually computed. True whenever the preference was on at compute time, regardless
  * of whether the resulting path happened to need a detour around any stairs.</p>
  *
- * <p>{@code distanceMeters} (Story 4.2, AD-7) is the real walked path length -- the sum of
- * the great-circle distance between every consecutive pair of {@code waypoints}, i.e. the
- * length of the exact polyline this route renders as. This is deliberately not a
- * straight-line current-position-to-destination shortcut: it's what lets
+ * <p>{@code distanceMeters} (Story 4.2, AD-7) is the real walked path length: the two
+ * start/destination "snap" legs (great-circle, since they aren't graph edges) plus the sum
+ * of the actual {@code Edge.distanceMeters} of every edge traversed between them --
+ * computed in {@code :navigation-engine}'s {@code AStarRouter} as the same edge-weighted
+ * cost A* itself minimized to find the path (its {@code gScore} at the destination node),
+ * not a second, independently-recomputed approximation of it. This is deliberately not a
+ * straight-line current-position-to-destination shortcut, and deliberately not a
+ * Haversine-of-{@code waypoints} resummation either -- the latter would silently diverge
+ * from what A* actually optimized on for any real-world edge that isn't a straight line
+ * between its two node coordinates (e.g. a corridor that bends). It's what lets
  * {@code FindNearestCategoryPickUseCase} compare candidate Buildings by real walking
  * distance rather than as-the-crow-flies proximity.</p>
  */

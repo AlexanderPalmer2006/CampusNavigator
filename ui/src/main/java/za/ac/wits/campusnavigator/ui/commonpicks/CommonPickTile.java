@@ -45,6 +45,42 @@ public final class CommonPickTile {
                 context.getString(R.string.common_pick_category_kind), null, category);
     }
 
+    /** Title-case tile label (matches the mockup's "Nearest Bathroom"/"Nearest ATM"). */
+    private static String displayNameFor(String categoryName) {
+        if (categoryName == null) {
+            // Defensive only -- CategoryTag.name has no live production path that can be
+            // null (every seeded row has a real name), but a Java String switch throws NPE
+            // on a null selector, so a malformed/future row must degrade gracefully rather
+            // than crash the whole Common Picks tab load (Review Findings, 2026-07-12).
+            return "";
+        }
+        switch (categoryName) {
+            case "atm":
+                return "ATM";
+            default:
+                return capitalize(categoryName);
+        }
+    }
+
+    /**
+     * Public so {@code CommonPicksFragment}'s "No {category} found nearby" honest-failure
+     * Snackbar (AC 2) can format the category name for that sentence-case message context
+     * (Review Findings, 2026-07-12) -- deliberately *not* {@link #displayNameFor}, which is
+     * title-case for a tile label ("Nearest Bathroom") and would wrongly read "No Bathroom
+     * found nearby" against EXPERIENCE.md UJ-3's literal lowercase-mid-sentence copy ("No
+     * bathroom found nearby"). Passes the raw (already-lowercase) category name through
+     * unchanged for ordinary words, but still uppercases "ATM" -- an acronym stays
+     * uppercase in sentence case too, unlike an ordinary common noun; without this
+     * exception the message would read the ungrammatical "No atm found nearby" while the
+     * tile that triggered it reads "Nearest ATM."
+     */
+    public static String sentenceCaseNameFor(String categoryName) {
+        if (categoryName == null) {
+            return "";
+        }
+        return "atm".equals(categoryName) ? "ATM" : categoryName;
+    }
+
     public Kind getKind() {
         return kind;
     }
@@ -80,6 +116,11 @@ public final class CommonPickTile {
      * not auto-derived from the category name.
      */
     private static String iconFor(String categoryName) {
+        if (categoryName == null) {
+            // Same defensive-null reasoning as displayNameFor -- a Java String switch
+            // throws NPE on a null selector (Review Findings, 2026-07-12).
+            return "📌";
+        }
         switch (categoryName) {
             case "bathroom":
                 return "🚻";
@@ -89,26 +130,6 @@ public final class CommonPickTile {
                 return "🏧";
             default:
                 return "📌"; // generic fallback for a future curated category with no glyph added here yet
-        }
-    }
-
-    /**
-     * Presentation-only display-name lookup local to this one tile label (matches the
-     * mockup's "Nearest Bathroom"/"Nearest ATM" styling exactly, including "ATM" as a
-     * full-caps acronym rather than plain capitalization -- a generic
-     * capitalize-first-letter transform would produce "Atm," wrong for an acronym). Does
-     * not change how CategoryTag names render anywhere else; the Building Info Page's own
-     * {@code formatCategoryTags} (Story 2.1) still deliberately shows tag names
-     * lowercase/as-is. Same "needs an entry added here for a new curated category" caveat
-     * as {@link #iconFor(String)} -- the fallback plain-capitalizes for any category name
-     * not yet listed here.
-     */
-    private static String displayNameFor(String categoryName) {
-        switch (categoryName) {
-            case "atm":
-                return "ATM";
-            default:
-                return capitalize(categoryName);
         }
     }
 

@@ -12,17 +12,28 @@ import java.util.List;
 public final class PathResult {
 
     private final List<RoutePoint> waypoints;
+    private final double totalDistanceMeters;
 
-    private PathResult(List<RoutePoint> waypoints) {
+    private PathResult(List<RoutePoint> waypoints, double totalDistanceMeters) {
         this.waypoints = waypoints;
+        this.totalDistanceMeters = totalDistanceMeters;
     }
 
-    public static PathResult found(List<RoutePoint> waypoints) {
-        return new PathResult(waypoints);
+    /**
+     * @param totalDistanceMeters the real path length: the two start/destination "snap"
+     *                            legs (Haversine, since they aren't graph edges) plus the
+     *                            actual {@code GraphEdge.distanceMeters} of every edge
+     *                            traversed between them -- not a Haversine straight-line
+     *                            shortcut between waypoint coordinates (Story 4.2, AD-7).
+     *                            This is the same weighted cost A* itself minimized, not a
+     *                            second, independently-computed approximation of it.
+     */
+    public static PathResult found(List<RoutePoint> waypoints, double totalDistanceMeters) {
+        return new PathResult(waypoints, totalDistanceMeters);
     }
 
     public static PathResult notFound() {
-        return new PathResult(null);
+        return new PathResult(null, 0.0);
     }
 
     public boolean isFound() {
@@ -32,5 +43,10 @@ public final class PathResult {
     /** Empty (never null) when {@link #isFound()} is false. */
     public List<RoutePoint> getWaypoints() {
         return waypoints == null ? Collections.emptyList() : waypoints;
+    }
+
+    /** Meaningless (0.0) when {@link #isFound()} is false. */
+    public double getTotalDistanceMeters() {
+        return totalDistanceMeters;
     }
 }

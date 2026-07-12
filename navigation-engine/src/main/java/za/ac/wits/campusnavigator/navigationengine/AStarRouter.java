@@ -49,10 +49,11 @@ public final class AStarRouter {
         GraphNode startNode = nearestNode(nodes, startLat, startLon);
         GraphNode destNode = nearestNode(nodes, destLat, destLon);
 
-        List<GraphNode> path = runAStar(nodes, edges, startNode, destNode, avoidStairs);
-        if (path == null) {
+        PathWithDistance result = runAStar(nodes, edges, startNode, destNode, avoidStairs);
+        if (result == null) {
             return PathResult.notFound();
         }
+        List<GraphNode> path = result.path;
 
         List<RoutePoint> waypoints = new ArrayList<>();
         waypoints.add(new RoutePoint(startLat, startLon));
@@ -60,7 +61,19 @@ public final class AStarRouter {
             waypoints.add(new RoutePoint(node.latitude, node.longitude));
         }
         waypoints.add(new RoutePoint(destLat, destLon));
-        return PathResult.found(waypoints);
+
+        // Story 4.2 (AD-7): total distance is the two snap legs (Haversine, since they
+        // aren't graph edges -- the real position rarely sits exactly on a node) plus
+        // result.graphDistanceMeters, which IS the same edge-weighted cost A* itself
+        // minimized (gScore at the goal node) -- not a second, independently-computed
+        // approximation of it (e.g. re-summing Haversine between waypoint coordinates,
+        // which would silently diverge from what A* actually optimized on for any edge
+        // whose real-world path isn't a straight line between its two node coordinates).
+        double startSnapMeters = Haversine.distanceMeters(startLat, startLon, startNode.latitude, startNode.longitude);
+        double destSnapMeters = Haversine.distanceMeters(destNode.latitude, destNode.longitude, destLat, destLon);
+        double totalDistanceMeters = startSnapMeters + result.graphDistanceMeters + destSnapMeters;
+
+        return PathResult.found(waypoints, totalDistanceMeters);
     }
 
     private GraphNode nearestNode(List<GraphNode> nodes, double lat, double lon) {
@@ -87,8 +100,19 @@ public final class AStarRouter {
         }
     }
 
-    private List<GraphNode> runAStar(List<GraphNode> nodes, List<GraphEdge> edges, GraphNode start, GraphNode goal,
-                                      boolean avoidStairs) {
+    /** The found path plus the real graph-edge-weighted distance A* minimized to find it. */
+    private static final class PathWithDistance {
+        final List<GraphNode> path;
+        final double graphDistanceMeters;
+
+        PathWithDistance(List<GraphNode> path, double graphDistanceMeters) {
+            this.path = path;
+            this.graphDistanceMeters = graphDistanceMeters;
+        }
+    }
+
+    private PathWithDistance runAStar(List<GraphNode> nodes, List<GraphEdge> edges, GraphNode start, GraphNode goal,
+                                       boolean avoidStairs) {
         Map<Long, GraphNode> nodesById = new HashMap<>();
         for (GraphNode node : nodes) {
             nodesById.put(node.id, node);
@@ -118,7 +142,7 @@ public final class AStarRouter {
         }
 
         if (start.id == goal.id) {
-            return Collections.singletonList(start);
+            return new PathWithDistance(Collections.singletonList(start), 0.0);
         }
 
         Map<Long, Double> gScore = new HashMap<>();
@@ -141,7 +165,7 @@ public final class AStarRouter {
         while (!openSet.isEmpty()) {
             long currentId = openSet.poll().nodeId;
             if (currentId == goal.id) {
-                return reconstructPath(cameFrom, nodesById, goal.id);
+                return new PathWithDistance(reconstructPath(cameFrom, nodesById, goal.id), gScore.get(goal.id));
             }
             if (!visited.add(currentId)) {
                 continue;

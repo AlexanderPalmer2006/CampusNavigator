@@ -39,6 +39,13 @@ public final class FindNearestCategoryPickUseCase {
             return Result.error(Result.ErrorType.NO_CATEGORY_MATCH);
         }
 
+        // Strict `<` (not `<=`) deliberately keeps the first candidate seen at the current
+        // minimum on an exact distance tie -- a defined, reproducible tie-break, not an
+        // arbitrary one, because `candidates` is returned in a stable `ORDER BY Building.id`
+        // (Review Findings, 2026-07-12: BuildingDao.getBuildingsByCategory) rather than
+        // SQLite's otherwise-unspecified row order. An exact tie is effectively unreachable
+        // with today's seed data (no two seed Buildings sit at equal real walking distance
+        // from any point) but this makes the behavior deterministic if it ever does occur.
         Building nearest = null;
         double nearestDistanceMeters = Double.MAX_VALUE;
         for (Building candidate : candidates) {

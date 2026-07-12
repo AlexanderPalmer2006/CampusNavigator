@@ -139,8 +139,16 @@ public final class CommonPicksFragment extends Fragment {
                 // land on the Map where the route renders, same outcome as a Landmark tap.
                 bottomNavigation.selectMapTab();
             } else if (resolution instanceof Result.Error) {
-                // AC 2: honest "none found nearby" message, category-specific (UJ-3).
-                String categoryName = pendingCategoryResolution != null ? pendingCategoryResolution.getName() : "";
+                // AC 2: honest "none found nearby" message, category-specific, matching
+                // EXPERIENCE.md UJ-3's literal lowercase-mid-sentence copy ("No bathroom
+                // found nearby"). Uses CommonPickTile.sentenceCaseNameFor (Review Findings,
+                // 2026-07-12), not the tile's own title-case displayNameFor -- see that
+                // method's Javadoc for why the two intentionally differ (this fixes the
+                // "No atm found nearby" acronym-capitalization mismatch against the
+                // "Nearest ATM" tile that triggers it, without wrongly title-casing
+                // ordinary category names like "bathroom" in this sentence context).
+                String categoryName = pendingCategoryResolution != null
+                        ? CommonPickTile.sentenceCaseNameFor(pendingCategoryResolution.getName()) : "";
                 Snackbar.make(view, getString(R.string.common_pick_category_no_match, categoryName), Snackbar.LENGTH_LONG)
                         .show();
             }

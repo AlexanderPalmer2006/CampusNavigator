@@ -35,6 +35,10 @@ public class ComputeRouteUseCaseTest {
         Route route = ((Result.Success<Route>) result).getValue();
         assertEquals(4, route.getWaypoints().size());
         assertFalse("avoidStairs=false must not mark the route accessible", route.isAccessible());
+        // currentPosition/destination coincide exactly with node1/node2 -- both snap legs
+        // are 0, so getDistanceMeters() must equal the traversed edge's own distanceMeters
+        // exactly (Story 4.2, AD-7), not a recomputed approximation of it.
+        assertEquals(371.8, route.getDistanceMeters(), 0.01);
     }
 
     @Test

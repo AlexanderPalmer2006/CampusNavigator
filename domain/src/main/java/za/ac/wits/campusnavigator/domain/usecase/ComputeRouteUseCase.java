@@ -12,7 +12,6 @@ import za.ac.wits.campusnavigator.domain.result.Result;
 import za.ac.wits.campusnavigator.navigationengine.AStarRouter;
 import za.ac.wits.campusnavigator.navigationengine.GraphEdge;
 import za.ac.wits.campusnavigator.navigationengine.GraphNode;
-import za.ac.wits.campusnavigator.navigationengine.Haversine;
 import za.ac.wits.campusnavigator.navigationengine.PathResult;
 import za.ac.wits.campusnavigator.navigationengine.RoutePoint;
 
@@ -63,23 +62,11 @@ public final class ComputeRouteUseCase {
         for (RoutePoint point : pathResult.getWaypoints()) {
             waypoints.add(new Position(point.latitude, point.longitude, 0f));
         }
-        return Result.success(new Route(waypoints, avoidStairs, totalDistanceMeters(waypoints)));
-    }
-
-    /**
-     * Story 4.2 (AD-7): the real walked path length -- the sum of the great-circle
-     * distance between every consecutive waypoint pair, i.e. the length of the exact
-     * polyline this route renders as. Not a straight-line current-position-to-destination
-     * shortcut; see {@link Route}'s own Javadoc for why this generalizes correctly to
-     * non-straight real-world edges too, not just this app's current hand-authored graph.
-     */
-    private static double totalDistanceMeters(List<Position> waypoints) {
-        double total = 0.0;
-        for (int i = 1; i < waypoints.size(); i++) {
-            Position from = waypoints.get(i - 1);
-            Position to = waypoints.get(i);
-            total += Haversine.distanceMeters(from.getLatitude(), from.getLongitude(), to.getLatitude(), to.getLongitude());
-        }
-        return total;
+        // Story 4.2 (AD-7): pathResult.getTotalDistanceMeters() is the real edge-weighted
+        // path length AStarRouter itself minimized (plus the two start/destination snap
+        // legs) -- not a second, independently-recomputed Haversine-of-waypoints
+        // approximation that could silently diverge from what A* actually optimized on
+        // for a real-world (non-straight) edge. See Route's and PathResult's own Javadoc.
+        return Result.success(new Route(waypoints, avoidStairs, pathResult.getTotalDistanceMeters()));
     }
 }
