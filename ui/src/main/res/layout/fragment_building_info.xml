@@ -53,6 +53,22 @@
                 android:contentDescription="@null" />
         </LinearLayout>
 
+        <!-- DESIGN.md: "primary action buttons (Favourite, Start Navigation)": same
+             accent-filled, {rounded.md} (12dp) treatment as startNavigationButton below.
+             Favourite is the lighter-weight, always-available action (visible as soon as
+             details load, unlike startNavigationButton which the failed-load path hides),
+             positioned above the primary "go" action: Story 5.1. -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/favouriteButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:minHeight="48dp"
+            android:text="@string/favourite_button_save"
+            android:textAllCaps="false"
+            android:visibility="gone"
+            app:cornerRadius="12dp" />
+
         <!-- DESIGN.md: primary action button, accent-filled, {rounded.md} (12dp). Theme's
              colorPrimary/colorOnPrimary already resolve to accent/surface_base (themes.xml),
              so MaterialButton needs no explicit color overrides here. -->
@@ -60,7 +76,7 @@
             android:id="@+id/startNavigationButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="12dp"
             android:minHeight="48dp"
             android:text="@string/start_navigation_button"
             android:textAllCaps="false"

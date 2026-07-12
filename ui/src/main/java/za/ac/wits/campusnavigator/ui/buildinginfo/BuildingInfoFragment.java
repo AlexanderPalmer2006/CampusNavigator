@@ -19,7 +19,10 @@ import za.ac.wits.campusnavigator.ui.map.HasComputeRouteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasFindNearestCategoryPickUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasIsFavouriteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasLocationProvider;
+import za.ac.wits.campusnavigator.ui.map.HasRemoveFavouriteUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasSaveFavouriteUseCase;
 import za.ac.wits.campusnavigator.ui.navigation.NavigationViewModel;
 import za.ac.wits.campusnavigator.ui.navigation.NavigationViewModelFactory;
 
@@ -57,8 +60,12 @@ public final class BuildingInfoFragment extends Fragment {
 
         long buildingId = requireArguments().getLong(ARG_BUILDING_ID);
         HasGetBuildingDetailsUseCase provider = (HasGetBuildingDetailsUseCase) requireActivity();
-        BuildingInfoViewModelFactory factory =
-                new BuildingInfoViewModelFactory(provider.getGetBuildingDetailsUseCase(), buildingId);
+        HasIsFavouriteUseCase isFavouriteProvider = (HasIsFavouriteUseCase) requireActivity();
+        HasSaveFavouriteUseCase saveFavouriteProvider = (HasSaveFavouriteUseCase) requireActivity();
+        HasRemoveFavouriteUseCase removeFavouriteProvider = (HasRemoveFavouriteUseCase) requireActivity();
+        BuildingInfoViewModelFactory factory = new BuildingInfoViewModelFactory(provider.getGetBuildingDetailsUseCase(),
+                isFavouriteProvider.getIsFavouriteUseCase(), saveFavouriteProvider.getSaveFavouriteUseCase(),
+                removeFavouriteProvider.getRemoveFavouriteUseCase(), buildingId);
         BuildingInfoViewModel viewModel = new ViewModelProvider(this, factory).get(BuildingInfoViewModel.class);
 
         HasComputeRouteUseCase computeRouteProvider = (HasComputeRouteUseCase) requireActivity();
@@ -81,7 +88,10 @@ public final class BuildingInfoFragment extends Fragment {
         TextView facultyView = view.findViewById(R.id.buildingFaculty);
         TextView categoryTagsView = view.findViewById(R.id.buildingCategoryTags);
         View photoSection = view.findViewById(R.id.photoSection);
+        MaterialButton favouriteButton = view.findViewById(R.id.favouriteButton);
         MaterialButton startNavigationButton = view.findViewById(R.id.startNavigationButton);
+
+        favouriteButton.setOnClickListener(v -> viewModel.toggleFavourite());
 
         startNavigationButton.setOnClickListener(v -> {
             if (currentDetails == null) {
@@ -105,9 +115,11 @@ public final class BuildingInfoFragment extends Fragment {
                 facultyView.setVisibility(View.GONE);
                 categoryTagsView.setVisibility(View.GONE);
                 photoSection.setVisibility(View.GONE);
+                favouriteButton.setVisibility(View.GONE);
                 startNavigationButton.setVisibility(View.GONE);
                 return;
             }
+            favouriteButton.setVisibility(View.VISIBLE);
             startNavigationButton.setVisibility(View.VISIBLE);
 
             String name = details.getBuilding().getName();
@@ -129,6 +141,18 @@ public final class BuildingInfoFragment extends Fragment {
             // AC 4: photo section omitted entirely (GONE, not an empty/broken image) when
             // no photo exists -- true for all 5 seed buildings right now (Task 1).
             photoSection.setVisibility(details.hasPhoto() ? View.VISIBLE : View.GONE);
+        });
+
+        // Story 5.1: drives the Save/Unsave toggle text -- always reflects the real
+        // persisted state (re-read via IsFavouriteUseCase at load, updated by
+        // toggleFavourite()), never a locally-cached assumption (Previous Story
+        // Intelligence's own flagged risk: a text surface silently drifting out of sync
+        // with the actual persisted state, the same risk class as Story 4.2's ATM-label fix).
+        viewModel.getIsFavourite().observe(getViewLifecycleOwner(), isFavourite -> {
+            boolean favourite = Boolean.TRUE.equals(isFavourite);
+            favouriteButton.setText(favourite ? R.string.favourite_button_saved : R.string.favourite_button_save);
+            favouriteButton.setContentDescription(
+                    getString(favourite ? R.string.favourite_button_saved : R.string.favourite_button_save));
         });
     }
 

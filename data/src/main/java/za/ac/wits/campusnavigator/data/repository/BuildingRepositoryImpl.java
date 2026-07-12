@@ -79,6 +79,12 @@ public final class BuildingRepositoryImpl implements BuildingRepository {
         return tags;
     }
 
+    @Override
+    public Building getBuildingById(long buildingId) {
+        BuildingEntity entity = buildingDao.getById(buildingId);
+        return entity == null ? null : toDomain(entity);
+    }
+
     private static Building toDomain(BuildingEntity entity) {
         return new Building(entity.id, entity.name, entity.latitude, entity.longitude,
                 entity.campusId, entity.code, entity.facultyDepartment, entity.isLandmarkPick);

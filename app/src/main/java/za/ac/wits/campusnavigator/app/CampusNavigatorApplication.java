@@ -4,10 +4,12 @@ import android.app.Application;
 import za.ac.wits.campusnavigator.data.local.CampusDatabase;
 import za.ac.wits.campusnavigator.data.local.UserDatabase;
 import za.ac.wits.campusnavigator.data.repository.BuildingRepositoryImpl;
+import za.ac.wits.campusnavigator.data.repository.FavouritesRepositoryImpl;
 import za.ac.wits.campusnavigator.data.repository.RoutingRepositoryImpl;
 import za.ac.wits.campusnavigator.data.repository.SettingsRepositoryImpl;
 import za.ac.wits.campusnavigator.domain.location.LocationProvider;
 import za.ac.wits.campusnavigator.domain.repository.BuildingRepository;
+import za.ac.wits.campusnavigator.domain.repository.FavouritesRepository;
 import za.ac.wits.campusnavigator.domain.repository.RoutingRepository;
 import za.ac.wits.campusnavigator.domain.repository.SettingsRepository;
 import za.ac.wits.campusnavigator.domain.search.SearchBuildingsUseCase;
@@ -17,7 +19,11 @@ import za.ac.wits.campusnavigator.domain.usecase.GetAccessibilityPreferenceUseCa
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetCommonPickCategoriesUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.GetFavouritesUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetLandmarkPicksUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.IsFavouriteUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.RemoveFavouriteUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.SaveFavouriteUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.SetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.location.AndroidLocationProvider;
 import za.ac.wits.campusnavigator.ui.map.HasComputeRouteUseCase;
@@ -26,8 +32,12 @@ import za.ac.wits.campusnavigator.ui.map.HasGetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetCommonPickCategoriesUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasGetFavouritesUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetLandmarkPicksUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasIsFavouriteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasLocationProvider;
+import za.ac.wits.campusnavigator.ui.map.HasRemoveFavouriteUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasSaveFavouriteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasSearchBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasSetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.MapLibreInitializer;
@@ -41,7 +51,8 @@ public final class CampusNavigatorApplication extends Application
         implements HasGetBuildingsUseCase, HasLocationProvider, HasSearchBuildingsUseCase,
         HasGetBuildingDetailsUseCase, HasComputeRouteUseCase, HasGetAccessibilityPreferenceUseCase,
         HasSetAccessibilityPreferenceUseCase, HasGetLandmarkPicksUseCase, HasGetCommonPickCategoriesUseCase,
-        HasFindNearestCategoryPickUseCase {
+        HasFindNearestCategoryPickUseCase, HasGetFavouritesUseCase, HasIsFavouriteUseCase, HasSaveFavouriteUseCase,
+        HasRemoveFavouriteUseCase {
 
     private GetBuildingsUseCase getBuildingsUseCase;
     private SearchBuildingsUseCase searchBuildingsUseCase;
@@ -52,6 +63,10 @@ public final class CampusNavigatorApplication extends Application
     private GetLandmarkPicksUseCase getLandmarkPicksUseCase;
     private GetCommonPickCategoriesUseCase getCommonPickCategoriesUseCase;
     private FindNearestCategoryPickUseCase findNearestCategoryPickUseCase;
+    private GetFavouritesUseCase getFavouritesUseCase;
+    private IsFavouriteUseCase isFavouriteUseCase;
+    private SaveFavouriteUseCase saveFavouriteUseCase;
+    private RemoveFavouriteUseCase removeFavouriteUseCase;
     private LocationProvider locationProvider;
 
     @Override
@@ -80,6 +95,12 @@ public final class CampusNavigatorApplication extends Application
         SettingsRepository settingsRepository = new SettingsRepositoryImpl(userDatabase.settingDao());
         getAccessibilityPreferenceUseCase = new GetAccessibilityPreferenceUseCase(settingsRepository);
         setAccessibilityPreferenceUseCase = new SetAccessibilityPreferenceUseCase(settingsRepository);
+
+        FavouritesRepository favouritesRepository = new FavouritesRepositoryImpl(userDatabase.favouriteDao());
+        getFavouritesUseCase = new GetFavouritesUseCase(favouritesRepository, buildingRepository);
+        isFavouriteUseCase = new IsFavouriteUseCase(favouritesRepository);
+        saveFavouriteUseCase = new SaveFavouriteUseCase(favouritesRepository);
+        removeFavouriteUseCase = new RemoveFavouriteUseCase(favouritesRepository);
 
         // Exactly one instance, shared -- never re-instantiated per feature (AD-11).
         locationProvider = new AndroidLocationProvider(this);
@@ -133,5 +154,25 @@ public final class CampusNavigatorApplication extends Application
     @Override
     public FindNearestCategoryPickUseCase getFindNearestCategoryPickUseCase() {
         return findNearestCategoryPickUseCase;
+    }
+
+    @Override
+    public GetFavouritesUseCase getGetFavouritesUseCase() {
+        return getFavouritesUseCase;
+    }
+
+    @Override
+    public IsFavouriteUseCase getIsFavouriteUseCase() {
+        return isFavouriteUseCase;
+    }
+
+    @Override
+    public SaveFavouriteUseCase getSaveFavouriteUseCase() {
+        return saveFavouriteUseCase;
+    }
+
+    @Override
+    public RemoveFavouriteUseCase getRemoveFavouriteUseCase() {
+        return removeFavouriteUseCase;
     }
 }

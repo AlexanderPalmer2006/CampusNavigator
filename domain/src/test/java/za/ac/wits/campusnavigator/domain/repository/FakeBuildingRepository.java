@@ -69,4 +69,14 @@ public final class FakeBuildingRepository implements BuildingRepository {
     public List<CategoryTag> getCommonPickCategories() {
         return commonPickCategories;
     }
+
+    @Override
+    public Building getBuildingById(long buildingId) {
+        for (Building building : buildings) {
+            if (building.getId() == buildingId) {
+                return building;
+            }
+        }
+        return null;
+    }
 }

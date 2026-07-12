@@ -28,4 +28,12 @@
     <string name="common_pick_category_kind">Category Pick</string>
     <string name="common_pick_category_label">Nearest %1$s</string>
     <string name="common_pick_category_no_match">No %1$s found nearby</string>
+    <string name="favourite_button_save">☆ Save</string>
+    <string name="favourite_button_saved">★ Saved</string>
+    <string name="favourites_title">Favourites</string>
+    <string name="favourite_empty_state">Save a Building from its info page to see it here</string>
+    <string name="favourite_stale_building">This place is no longer available</string>
+    <string name="favourite_row_description">%1$s</string>
+    <string name="favourite_unsave_description">Remove %1$s from Favourites</string>
+    <string name="favourite_unsave_icon">★</string>
 </resources>

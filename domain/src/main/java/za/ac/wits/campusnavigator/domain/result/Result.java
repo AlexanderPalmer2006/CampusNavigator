@@ -69,6 +69,14 @@ public abstract class Result<T> {
          * user ("none found nearby"), so both share this one ErrorType by deliberate
          * design (see FindNearestCategoryPickUseCase's own Javadoc).
          */
-        NO_CATEGORY_MATCH
+        NO_CATEGORY_MATCH,
+        /**
+         * Story 5.1, AD-6/AD-9 (already anticipated by name in ARCHITECTURE-SPINE.md): a
+         * Favourite's saved building id no longer resolves to a real Building (e.g. a
+         * bundled-data update removed or renamed it). Surfaced by
+         * {@code GetFavouritesUseCase} per-{@code FavouriteItem}, never for the whole
+         * Favourites list at once -- one stale entry must not hide the rest.
+         */
+        BUILDING_NO_LONGER_EXISTS
     }
 }

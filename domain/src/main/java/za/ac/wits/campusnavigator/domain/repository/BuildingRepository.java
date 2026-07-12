@@ -49,4 +49,13 @@ public interface BuildingRepository {
      * convention as {@link #getLandmarkPicks()}, applied to CategoryTag instead of Building.
      */
     List<CategoryTag> getCommonPickCategories();
+
+    /**
+     * Returns just the {@link Building} for one id, {@code null} if unknown/stale -- the
+     * lighter-weight counterpart to {@link #getBuildingDetails(long)} for callers that only
+     * need the Building itself, not its category tags/photo (Story 5.1's Favourites
+     * reconciliation, {@code GetFavouritesUseCase}, doesn't need either). Same
+     * null-on-missing convention as {@link #getBuildingDetails(long)}.
+     */
+    Building getBuildingById(long buildingId);
 }
