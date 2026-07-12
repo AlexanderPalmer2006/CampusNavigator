@@ -20,6 +20,12 @@ import za.ac.wits.campusnavigator.navigationengine.RoutePoint;
  * :navigation-engine's pure A* router. Translates :navigation-engine's local "not found"
  * wrapper into :domain's shared {@link Result} type (AD-9) -- this is the seam where that
  * translation happens, :navigation-engine itself has no dependency on Result (AD-5).
+ *
+ * <p>{@code avoidStairs} (Story 3.1, AD-8, FR-7/FR-11) is passed straight through to
+ * {@link AStarRouter}, which excludes stair-tagged edges from the search space entirely
+ * when set. The two failure modes are user-facing-distinct (AC 3): a not-found result
+ * while {@code avoidStairs} is on means "no step-free path exists" ({@code
+ * NO_ACCESSIBLE_ROUTE}), not the generic {@code NO_ROUTE_AVAILABLE}.</p>
  */
 public final class ComputeRouteUseCase {
 
@@ -31,7 +37,7 @@ public final class ComputeRouteUseCase {
         this.router = new AStarRouter();
     }
 
-    public Result<Route> execute(Position currentPosition, Building destination) {
+    public Result<Route> execute(Position currentPosition, Building destination, boolean avoidStairs) {
         List<Node> nodes = routingRepository.getAllNodes();
         List<Edge> edges = routingRepository.getAllEdges();
 
@@ -41,21 +47,21 @@ public final class ComputeRouteUseCase {
         }
         List<GraphEdge> graphEdges = new ArrayList<>(edges.size());
         for (Edge edge : edges) {
-            graphEdges.add(new GraphEdge(edge.getFromNodeId(), edge.getToNodeId(), edge.getDistanceMeters()));
+            graphEdges.add(new GraphEdge(edge.getFromNodeId(), edge.getToNodeId(), edge.getDistanceMeters(), edge.isStairs()));
         }
 
         PathResult pathResult = router.findRoute(graphNodes, graphEdges,
                 currentPosition.getLatitude(), currentPosition.getLongitude(),
-                destination.getLatitude(), destination.getLongitude());
+                destination.getLatitude(), destination.getLongitude(), avoidStairs);
 
         if (!pathResult.isFound()) {
-            return Result.error(Result.ErrorType.NO_ROUTE_AVAILABLE);
+            return Result.error(avoidStairs ? Result.ErrorType.NO_ACCESSIBLE_ROUTE : Result.ErrorType.NO_ROUTE_AVAILABLE);
         }
 
         List<Position> waypoints = new ArrayList<>(pathResult.getWaypoints().size());
         for (RoutePoint point : pathResult.getWaypoints()) {
             waypoints.add(new Position(point.latitude, point.longitude, 0f));
         }
-        return Result.success(new Route(waypoints));
+        return Result.success(new Route(waypoints, avoidStairs));
     }
 }

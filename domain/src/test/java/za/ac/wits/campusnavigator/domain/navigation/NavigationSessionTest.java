@@ -51,12 +51,25 @@ public class NavigationSessionTest {
         return new Building(2L, "Robert Sobukwe Block", -26.1912, 28.0298, "wits-main", "RSB", null);
     }
 
+    /** A direct stair edge plus a step-free detour, so toggling avoidStairs changes the result. */
+    private ComputeRouteUseCase newComputeRouteUseCaseWithStairEdge() {
+        List<Node> nodes = new ArrayList<>();
+        nodes.add(new Node(1L, BASE_LAT, BASE_LON, "wits-main", "OUTDOOR"));
+        nodes.add(new Node(2L, -26.1912, 28.0298, "wits-main", "OUTDOOR"));
+        nodes.add(new Node(3L, -26.1910, 28.0280, "wits-main", "OUTDOOR"));
+        List<Edge> edges = new ArrayList<>();
+        edges.add(new Edge(1L, 1L, 2L, 50.0, true));
+        edges.add(new Edge(2L, 1L, 3L, 100.0, false));
+        edges.add(new Edge(3L, 3L, 2L, 100.0, false));
+        return new ComputeRouteUseCase(new FakeRoutingRepository(nodes, edges));
+    }
+
     @Test
     public void start_computesRouteImmediately() {
         NavigationSession session = new NavigationSession(newComputeRouteUseCase());
         RecordingListener listener = new RecordingListener();
 
-        session.start(destination(), new Position(BASE_LAT, BASE_LON, 8.0f), listener);
+        session.start(destination(), new Position(BASE_LAT, BASE_LON, 8.0f), false, listener);
 
         assertEquals(1, listener.updateCount);
         assertTrue(listener.lastResult instanceof Result.Success);
@@ -66,7 +79,7 @@ public class NavigationSessionTest {
     public void positionUpdateWithinThreshold_doesNotRecompute() {
         NavigationSession session = new NavigationSession(newComputeRouteUseCase());
         RecordingListener listener = new RecordingListener();
-        session.start(destination(), new Position(BASE_LAT, BASE_LON, 8.0f), listener);
+        session.start(destination(), new Position(BASE_LAT, BASE_LON, 8.0f), false, listener);
 
         // ~5.6m away -- under the 15m threshold.
         session.onPositionChanged(new Position(BASE_LAT + 0.00005, BASE_LON, 8.0f));
@@ -78,7 +91,7 @@ public class NavigationSessionTest {
     public void positionUpdateBeyondThreshold_recomputes() {
         NavigationSession session = new NavigationSession(newComputeRouteUseCase());
         RecordingListener listener = new RecordingListener();
-        session.start(destination(), new Position(BASE_LAT, BASE_LON, 8.0f), listener);
+        session.start(destination(), new Position(BASE_LAT, BASE_LON, 8.0f), false, listener);
 
         // ~33.4m away -- over the 15m threshold.
         session.onPositionChanged(new Position(BASE_LAT + 0.0003, BASE_LON, 8.0f));
@@ -90,11 +103,57 @@ public class NavigationSessionTest {
     public void stop_stopsReceivingFurtherUpdates() {
         NavigationSession session = new NavigationSession(newComputeRouteUseCase());
         RecordingListener listener = new RecordingListener();
-        session.start(destination(), new Position(BASE_LAT, BASE_LON, 8.0f), listener);
+        session.start(destination(), new Position(BASE_LAT, BASE_LON, 8.0f), false, listener);
 
         session.stop();
         session.onPositionChanged(new Position(BASE_LAT + 0.0003, BASE_LON, 8.0f));
 
         assertEquals("stop() must ignore updates once stopped", 1, listener.updateCount);
+    }
+
+    @Test
+    public void accessibilityPreferenceToggled_whileRouteActive_recomputesImmediately() {
+        NavigationSession session = new NavigationSession(newComputeRouteUseCaseWithStairEdge());
+        RecordingListener listener = new RecordingListener();
+        session.start(destination(), new Position(BASE_LAT, BASE_LON, 8.0f), false, listener);
+        assertTrue("Precondition: initial route uses the direct (stair) edge",
+                ((Result.Success<Route>) listener.lastResult).getValue().getWaypoints().size() == 4);
+
+        session.onAccessibilityPreferenceChanged(true);
+
+        assertEquals("Toggling with an active route must recompute immediately, no new position needed",
+                2, listener.updateCount);
+        assertTrue(listener.lastResult instanceof Result.Success);
+        Route recomputed = ((Result.Success<Route>) listener.lastResult).getValue();
+        assertTrue("Must be marked accessible after toggling on", recomputed.isAccessible());
+        assertEquals("Must detour around the stair edge", 5, recomputed.getWaypoints().size());
+    }
+
+    @Test
+    public void accessibilityPreferenceToggled_withNoActiveDestination_doesNotNotify() {
+        NavigationSession session = new NavigationSession(newComputeRouteUseCaseWithStairEdge());
+        RecordingListener listener = new RecordingListener();
+        // Never started -- no destination active.
+
+        session.onAccessibilityPreferenceChanged(true);
+
+        assertEquals("No active route -- nothing to recompute or notify", 0, listener.updateCount);
+    }
+
+    @Test
+    public void accessibilityPreference_carriesIntoSubsequentDeviationRecompute() {
+        NavigationSession session = new NavigationSession(newComputeRouteUseCaseWithStairEdge());
+        RecordingListener listener = new RecordingListener();
+        session.start(destination(), new Position(BASE_LAT, BASE_LON, 8.0f), false, listener);
+
+        session.onAccessibilityPreferenceChanged(true); // update #2, accessible detour
+        // ~33.4m away -- over the 15m threshold, triggers a third recompute.
+        session.onPositionChanged(new Position(BASE_LAT + 0.0003, BASE_LON, 8.0f));
+
+        assertEquals("Toggle-triggered state must carry into the next deviation-triggered recompute",
+                3, listener.updateCount);
+        Route thirdRoute = ((Result.Success<Route>) listener.lastResult).getValue();
+        assertTrue("The deviation-triggered recompute must still honor the earlier toggle",
+                thirdRoute.isAccessible());
     }
 }

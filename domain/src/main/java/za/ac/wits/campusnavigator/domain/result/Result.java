@@ -59,6 +59,8 @@ public abstract class Result<T> {
 
     /** Fixed, closed set -- extend, never replace or duplicate. */
     public enum ErrorType {
-        NO_ROUTE_AVAILABLE
+        NO_ROUTE_AVAILABLE,
+        /** Story 3.1, AD-8: no step-free path exists while the Accessibility Preference is on. */
+        NO_ACCESSIBLE_ROUTE
     }
 }

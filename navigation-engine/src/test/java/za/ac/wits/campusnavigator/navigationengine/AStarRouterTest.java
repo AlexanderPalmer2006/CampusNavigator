@@ -19,7 +19,7 @@ public class AStarRouterTest {
         List<GraphNode> nodes = Arrays.asList(
                 new GraphNode(1L, -26.1908, 28.0261),
                 new GraphNode(2L, -26.1912, 28.0298));
-        List<GraphEdge> edges = Collections.singletonList(new GraphEdge(1L, 2L, 350.0));
+        List<GraphEdge> edges = Collections.singletonList(new GraphEdge(1L, 2L, 350.0, false));
 
         PathResult result = router.findRoute(nodes, edges, -26.1908, 28.0261, -26.1912, 28.0298);
 
@@ -36,8 +36,8 @@ public class AStarRouterTest {
                 new GraphNode(2L, 0.0, 0.001),
                 new GraphNode(3L, 0.0, 0.002));
         List<GraphEdge> edges = Arrays.asList(
-                new GraphEdge(1L, 2L, 100.0),
-                new GraphEdge(2L, 3L, 100.0));
+                new GraphEdge(1L, 2L, 100.0, false),
+                new GraphEdge(2L, 3L, 100.0, false));
 
         PathResult result = router.findRoute(nodes, edges, 0.0, 0.0, 0.0, 0.002);
 
@@ -87,10 +87,10 @@ public class AStarRouterTest {
                 new GraphNode(3L, 0.0, -0.001),
                 new GraphNode(4L, 0.0, 0.002));
         List<GraphEdge> edges = Arrays.asList(
-                new GraphEdge(1L, 2L, 50.0),
-                new GraphEdge(2L, 4L, 50.0),
-                new GraphEdge(1L, 3L, 500.0),
-                new GraphEdge(3L, 4L, 500.0));
+                new GraphEdge(1L, 2L, 50.0, false),
+                new GraphEdge(2L, 4L, 50.0, false),
+                new GraphEdge(1L, 3L, 500.0, false),
+                new GraphEdge(3L, 4L, 500.0, false));
 
         PathResult result = router.findRoute(nodes, edges, 0.0, 0.0, 0.0, 0.002);
 
@@ -109,12 +109,50 @@ public class AStarRouterTest {
                 new GraphNode(1L, 0.0, 0.0),
                 new GraphNode(2L, 0.0, 0.001));
         List<GraphEdge> edges = Arrays.asList(
-                new GraphEdge(1L, 99L, 50.0),
-                new GraphEdge(1L, 2L, 100.0));
+                new GraphEdge(1L, 99L, 50.0, false),
+                new GraphEdge(1L, 2L, 100.0, false));
 
         PathResult result = router.findRoute(nodes, edges, 0.0, 0.0, 0.0, 0.001);
 
         assertTrue(result.isFound());
         assertEquals(4, result.getWaypoints().size()); // start + n1 + n2 + dest, via the valid edge
+    }
+
+    @Test
+    public void avoidStairs_detoursAroundStairEdge_whenAlternatePathExists() {
+        // 1 --(stairs, direct)-- 2, and 1 -- 3 -- 2 (longer, step-free) as the alternate.
+        List<GraphNode> nodes = Arrays.asList(
+                new GraphNode(1L, 0.0, 0.0),
+                new GraphNode(2L, 0.0, 0.003),
+                new GraphNode(3L, 0.0, 0.0015));
+        List<GraphEdge> edges = Arrays.asList(
+                new GraphEdge(1L, 2L, 50.0, true),
+                new GraphEdge(1L, 3L, 100.0, false),
+                new GraphEdge(3L, 2L, 100.0, false));
+
+        // avoidStairs=false: takes the short direct (stair) edge.
+        PathResult direct = router.findRoute(nodes, edges, 0.0, 0.0, 0.0, 0.003, false);
+        assertTrue(direct.isFound());
+        assertEquals(4, direct.getWaypoints().size()); // start + n1 + n2 + dest
+
+        // avoidStairs=true: the direct edge is impassable, must detour via node 3.
+        PathResult accessible = router.findRoute(nodes, edges, 0.0, 0.0, 0.0, 0.003, true);
+        assertTrue(accessible.isFound());
+        assertEquals(5, accessible.getWaypoints().size()); // start + n1 + n3 + n2 + dest
+    }
+
+    @Test
+    public void avoidStairs_returnsNotFound_whenOnlyPathRequiresStairs() {
+        // 1 -- 2 is the only edge, and it's a stair edge -- no step-free alternative exists.
+        List<GraphNode> nodes = Arrays.asList(
+                new GraphNode(1L, 0.0, 0.0),
+                new GraphNode(2L, 0.0, 0.001));
+        List<GraphEdge> edges = Collections.singletonList(new GraphEdge(1L, 2L, 100.0, true));
+
+        PathResult withStairsAllowed = router.findRoute(nodes, edges, 0.0, 0.0, 0.0, 0.001, false);
+        assertTrue(withStairsAllowed.isFound());
+
+        PathResult avoidingStairs = router.findRoute(nodes, edges, 0.0, 0.0, 0.0, 0.001, true);
+        assertFalse(avoidingStairs.isFound());
     }
 }

@@ -11,9 +11,10 @@ import java.util.PriorityQueue;
 import java.util.Set;
 
 /**
- * Pure Java A* over a walkway graph -- distance-weighted, not yet accessibility-aware
- * (that's Epic 3's job, consuming {@code GraphEdge}'s reserved stair-tag data at the
- * :domain/:data layer, not here). Story 2.2 Task 1.
+ * Pure Java A* over a walkway graph -- distance-weighted, and accessibility-aware since
+ * Story 3.1 (AD-8): when {@code avoidStairs} is requested, stair-tagged edges are
+ * excluded from the search space entirely before the search runs, so "no accessible
+ * route" falls out as a natural no-path-exists outcome rather than a cost heuristic.
  */
 public final class AStarRouter {
 
@@ -23,9 +24,24 @@ public final class AStarRouter {
      * returns the full waypoint list (start point -> nearest start node -> ...path
      * nodes... -> nearest destination node -> destination point), or a not-found result
      * if the graph is empty or the two nodes aren't connected.
+     *
+     * <p>Equivalent to {@code findRoute(nodes, edges, startLat, startLon, destLat,
+     * destLon, false)} -- preserved so Story 2.2's existing callers/tests are unaffected
+     * by Story 3.1's accessibility parameter.</p>
      */
     public PathResult findRoute(List<GraphNode> nodes, List<GraphEdge> edges,
                                  double startLat, double startLon, double destLat, double destLon) {
+        return findRoute(nodes, edges, startLat, startLon, destLat, destLon, false);
+    }
+
+    /**
+     * Same as the 6-arg {@link #findRoute}, but when {@code avoidStairs} is {@code true},
+     * any edge with {@code isStairs=true} is treated as impassable -- removed from the
+     * search space before A* runs, not merely made more expensive (AD-8).
+     */
+    public PathResult findRoute(List<GraphNode> nodes, List<GraphEdge> edges,
+                                 double startLat, double startLon, double destLat, double destLon,
+                                 boolean avoidStairs) {
         if (nodes.isEmpty()) {
             return PathResult.notFound();
         }
@@ -33,7 +49,7 @@ public final class AStarRouter {
         GraphNode startNode = nearestNode(nodes, startLat, startLon);
         GraphNode destNode = nearestNode(nodes, destLat, destLon);
 
-        List<GraphNode> path = runAStar(nodes, edges, startNode, destNode);
+        List<GraphNode> path = runAStar(nodes, edges, startNode, destNode, avoidStairs);
         if (path == null) {
             return PathResult.notFound();
         }
@@ -71,7 +87,8 @@ public final class AStarRouter {
         }
     }
 
-    private List<GraphNode> runAStar(List<GraphNode> nodes, List<GraphEdge> edges, GraphNode start, GraphNode goal) {
+    private List<GraphNode> runAStar(List<GraphNode> nodes, List<GraphEdge> edges, GraphNode start, GraphNode goal,
+                                      boolean avoidStairs) {
         Map<Long, GraphNode> nodesById = new HashMap<>();
         for (GraphNode node : nodes) {
             nodesById.put(node.id, node);
@@ -86,11 +103,18 @@ public final class AStarRouter {
             if (!nodesById.containsKey(edge.fromNodeId) || !nodesById.containsKey(edge.toNodeId)) {
                 continue;
             }
+            // AD-8: a stair-tagged edge is impassable when accessible routing is
+            // requested -- excluded from the search space entirely, before A* ever
+            // runs, not down-weighted or skipped-only-if-a-cheaper-alternative-exists.
+            // "No accessible route" must fall out as a natural no-path-exists outcome.
+            if (avoidStairs && edge.isStairs) {
+                continue;
+            }
             adjacency.computeIfAbsent(edge.fromNodeId, k -> new ArrayList<>()).add(edge);
             // Undirected -- register the reverse direction too, since a single row
             // represents a walkable connection both ways.
             adjacency.computeIfAbsent(edge.toNodeId, k -> new ArrayList<>())
-                    .add(new GraphEdge(edge.toNodeId, edge.fromNodeId, edge.distanceMeters));
+                    .add(new GraphEdge(edge.toNodeId, edge.fromNodeId, edge.distanceMeters, edge.isStairs));
         }
 
         if (start.id == goal.id) {

@@ -14,6 +14,7 @@ import za.ac.wits.campusnavigator.domain.model.Route;
 import za.ac.wits.campusnavigator.domain.navigation.NavigationSession;
 import za.ac.wits.campusnavigator.domain.result.Result;
 import za.ac.wits.campusnavigator.domain.usecase.ComputeRouteUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.GetAccessibilityPreferenceUseCase;
 
 /**
  * Activity-scoped (AD-12 Dev Notes: NavigationSession lives in an Activity-scoped
@@ -33,20 +34,31 @@ import za.ac.wits.campusnavigator.domain.usecase.ComputeRouteUseCase;
  * <p>All Room I/O (via ComputeRouteUseCase, reached through NavigationSession) is
  * dispatched off the main thread -- both the initial {@link #startNavigation} call and
  * every subsequent {@link #onPositionUpdate}-triggered recompute.</p>
+ *
+ * <p>Story 3.1: {@link #startNavigation} always re-reads the currently persisted
+ * Accessibility Preference via {@link GetAccessibilityPreferenceUseCase} before starting a
+ * session -- Room is the single source of truth (AC 1's "persists across app sessions"),
+ * not any value cached here. {@link #onAccessibilityPreferenceChanged} is the live wiring
+ * for AC 4 (toggled while a route is active): SettingsFragment calls it directly on this
+ * same Activity-scoped instance after persisting the new value, the same
+ * two-Fragments-one-instance bridge Story 2.2 established for starting navigation itself.</p>
  */
 public final class NavigationViewModel extends ViewModel implements LocationProvider.Listener {
 
     private final MutableLiveData<Result<Route>> activeRoute = new MutableLiveData<>();
     private final NavigationSession navigationSession;
     private final LocationProvider locationProvider;
+    private final GetAccessibilityPreferenceUseCase getAccessibilityPreferenceUseCase;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
     private Position lastKnownPosition;
     private String activeDestinationName;
 
-    public NavigationViewModel(@NonNull ComputeRouteUseCase computeRouteUseCase, @NonNull LocationProvider locationProvider) {
+    public NavigationViewModel(@NonNull ComputeRouteUseCase computeRouteUseCase, @NonNull LocationProvider locationProvider,
+                                @NonNull GetAccessibilityPreferenceUseCase getAccessibilityPreferenceUseCase) {
         this.navigationSession = new NavigationSession(computeRouteUseCase);
         this.locationProvider = locationProvider;
+        this.getAccessibilityPreferenceUseCase = getAccessibilityPreferenceUseCase;
         locationProvider.addListener(this);
     }
 
@@ -70,9 +82,20 @@ public final class NavigationViewModel extends ViewModel implements LocationProv
         }
         activeDestinationName = destination.getName();
         Position startPosition = lastKnownPosition;
-        executorService.execute(() ->
-                navigationSession.start(destination, startPosition, activeRoute::postValue));
+        executorService.execute(() -> {
+            boolean avoidStairs = getAccessibilityPreferenceUseCase.execute();
+            navigationSession.start(destination, startPosition, avoidStairs, activeRoute::postValue);
+        });
         return true;
+    }
+
+    /**
+     * Called by SettingsFragment (via this same Activity-scoped instance) whenever the
+     * Accessibility Preference toggle changes, after it's been persisted. AC 4: if a route
+     * is currently active, NavigationSession recomputes it immediately.
+     */
+    public void onAccessibilityPreferenceChanged(boolean avoidStairs) {
+        executorService.execute(() -> navigationSession.onAccessibilityPreferenceChanged(avoidStairs));
     }
 
     @Override

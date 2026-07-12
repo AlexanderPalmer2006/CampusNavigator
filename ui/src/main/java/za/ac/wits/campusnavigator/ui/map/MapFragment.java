@@ -83,10 +83,12 @@ public final class MapFragment extends Fragment {
     private NavigationViewModel navigationViewModel;
     private LocationMarkerView locationMarkerView;
     private RouteLineView routeLineView;
+    private TextView accessibleRouteLabelView;
     private LatLng lastMarkerPosition;
     private List<LatLng> currentRouteWaypoints = new ArrayList<>();
+    private boolean currentRouteIsAccessible;
     private Boolean lastAnnouncedDegraded;
-    private Boolean lastRouteWasError;
+    private Result.ErrorType lastRouteErrorType;
     private ActivityResultLauncher<String[]> locationPermissionLauncher;
 
     private EditText searchBar;
@@ -136,8 +138,9 @@ public final class MapFragment extends Fragment {
         cameraPositioned = false;
         lastMarkerPosition = null;
         currentRouteWaypoints = new ArrayList<>();
+        currentRouteIsAccessible = false;
         lastAnnouncedDegraded = null;
-        lastRouteWasError = null;
+        lastRouteErrorType = null;
 
         mapView = view.findViewById(R.id.mapView);
         labelOverlay = view.findViewById(R.id.buildingLabelOverlay);
@@ -148,6 +151,8 @@ public final class MapFragment extends Fragment {
         HasLocationProvider locationProviderHost = (HasLocationProvider) requireActivity();
         HasSearchBuildingsUseCase searchProvider = (HasSearchBuildingsUseCase) requireActivity();
         HasComputeRouteUseCase computeRouteProvider = (HasComputeRouteUseCase) requireActivity();
+        HasGetAccessibilityPreferenceUseCase accessibilityPreferenceProvider =
+                (HasGetAccessibilityPreferenceUseCase) requireActivity();
         buildingNavigator = (HasBuildingNavigation) requireActivity();
         locationProvider = locationProviderHost.getLocationProvider();
 
@@ -159,7 +164,8 @@ public final class MapFragment extends Fragment {
         // from BuildingInfoFragment (Task 5); observing it here just picks up whatever
         // state it's already in (Story 2.2 Dev Notes: "Resolved Design: NavigationViewModel").
         NavigationViewModelFactory navigationFactory =
-                new NavigationViewModelFactory(computeRouteProvider.getComputeRouteUseCase(), locationProvider);
+                new NavigationViewModelFactory(computeRouteProvider.getComputeRouteUseCase(), locationProvider,
+                        accessibilityPreferenceProvider.getGetAccessibilityPreferenceUseCase());
         navigationViewModel = new ViewModelProvider(requireActivity(), navigationFactory).get(NavigationViewModel.class);
 
         // Added before the location marker so the route line renders underneath it (and
@@ -168,6 +174,14 @@ public final class MapFragment extends Fragment {
         routeLineView = createRouteLineView();
         labelOverlay.addView(routeLineView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        // AC 2: persistent "Accessible route" label near the route's start, native View
+        // overlay same as the route line itself (MapLibre SymbolLayer text confirmed twice
+        // not to render against this app's offline style.json -- Story 1.1, Story 2.2).
+        accessibleRouteLabelView = createAccessibleRouteLabelView();
+        labelOverlay.addView(accessibleRouteLabelView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        accessibleRouteLabelView.setVisibility(View.INVISIBLE);
 
         locationMarkerView = createLocationMarkerView();
         int touchTargetPx = (int) dpToPx(TOUCH_TARGET_DP);
@@ -249,6 +263,30 @@ public final class MapFragment extends Fragment {
         return new RouteLineView(requireContext(), accentColor, outlineColor);
     }
 
+    /**
+     * DESIGN.md walking-route component: "Accessible Routing active -> persistent
+     * 'Accessible route' text/icon label near the route's start." Reuses existing tokens
+     * (surface_raised pill via bg_accessible_route_label, ink_primary text) rather than
+     * inventing new colors -- same convention as the Start Navigation button (Story 2.2).
+     */
+    private TextView createAccessibleRouteLabelView() {
+        TextView label = new TextView(requireContext());
+        label.setText(R.string.route_accessible_label);
+        label.setTextSize(12f);
+        label.setTextColor(getResources().getColor(R.color.ink_primary, requireContext().getTheme()));
+        label.setBackgroundResource(R.drawable.bg_accessible_route_label);
+        int paddingH = (int) dpToPx(8f);
+        int paddingV = (int) dpToPx(4f);
+        label.setPadding(paddingH, paddingV, paddingH, paddingV);
+        // Not independently tappable (no AC/Interaction Primitive calls for it), but still
+        // a real informational element TalkBack must announce (Accessibility Floor) --
+        // a plain TextView with non-empty text already participates in the accessibility
+        // tree by default, unlike RouteLineView's bare Canvas View which needed an explicit
+        // IMPORTANT_FOR_ACCESSIBILITY_YES override.
+        label.setClickable(false);
+        return label;
+    }
+
     private void renderBuildingLabels(@Nullable List<Building> buildings) {
         if (buildings == null || buildings.isEmpty() || map == null) {
             return;
@@ -256,9 +294,10 @@ public final class MapFragment extends Fragment {
 
         labelOverlay.removeAllViews();
         // Route line first so it renders underneath the location marker and the building
-        // labels added below it (removeAllViews() wipes every child, so both need
+        // labels added below it (removeAllViews() wipes every child, so all three need
         // re-adding here every time this method runs, not just on the first call).
         labelOverlay.addView(routeLineView);
+        labelOverlay.addView(accessibleRouteLabelView);
         labelOverlay.addView(locationMarkerView);
         labelViews.clear();
         int touchTargetPx = (int) dpToPx(TOUCH_TARGET_DP);
@@ -355,12 +394,15 @@ public final class MapFragment extends Fragment {
     /**
      * Observes the Activity-scoped NavigationViewModel (Task 5/6) -- null means no
      * navigation has been started yet (nothing to draw); {@code Result.Success} draws the
-     * line; {@code Result.Error(NO_ROUTE_AVAILABLE)} clears any existing line and shows the
-     * exact honest-failure microcopy (EXPERIENCE.md Voice and Tone), announced to TalkBack
-     * once per error-state transition -- not on every identical recompute, same debounce
-     * idea as the degraded-accuracy announcement above. {@code Result.NotFound} also clears
-     * the line silently (no Snackbar) -- used when the position source itself goes away
-     * (permission revoked) rather than a routing failure.
+     * line (plus the persistent "Accessible route" label per AC 2 when {@code
+     * route.isAccessible()}); {@code Result.Error} clears any existing line and shows the
+     * exact honest-failure microcopy for the specific error (EXPERIENCE.md Voice and Tone)
+     * -- {@code NO_ROUTE_AVAILABLE} vs {@code NO_ACCESSIBLE_ROUTE} (AC 3) are user-facing
+     * distinct, so the debounce below is keyed on the actual {@link Result.ErrorType}, not
+     * a plain boolean -- otherwise a transition between the two error reasons while an
+     * error was already showing would be silently swallowed. {@code Result.NotFound} also
+     * clears the line silently (no Snackbar) -- used when the position source itself goes
+     * away (permission revoked) rather than a routing failure.
      */
     private void renderRoute(@Nullable Result<Route> result) {
         if (result instanceof Result.Success) {
@@ -370,7 +412,8 @@ public final class MapFragment extends Fragment {
                 waypoints.add(new LatLng(waypoint.getLatitude(), waypoint.getLongitude()));
             }
             currentRouteWaypoints = waypoints;
-            lastRouteWasError = false;
+            currentRouteIsAccessible = route.isAccessible();
+            lastRouteErrorType = null;
             String destinationName = navigationViewModel.getActiveDestinationName();
             routeLineView.setContentDescription(destinationName == null
                     ? null : getString(R.string.navigation_route_description, destinationName));
@@ -378,24 +421,29 @@ public final class MapFragment extends Fragment {
             return;
         }
 
-        // No route to draw either way: Error(NO_ROUTE_AVAILABLE), NotFound (permission
-        // revoked), or no navigation started yet (result == null) -- AC 2 requires no
-        // broken/empty line ever rendered.
+        // No route to draw either way: Error(NO_ROUTE_AVAILABLE/NO_ACCESSIBLE_ROUTE),
+        // NotFound (permission revoked), or no navigation started yet (result == null) --
+        // AC 2 requires no broken/empty line ever rendered.
         currentRouteWaypoints = new ArrayList<>();
+        currentRouteIsAccessible = false;
         routeLineView.setContentDescription(null);
         repositionRouteLine();
 
         if (result instanceof Result.Error) {
-            if (!Boolean.TRUE.equals(lastRouteWasError)) {
+            Result.ErrorType errorType = ((Result.Error<Route>) result).getErrorType();
+            if (errorType != lastRouteErrorType) {
+                int messageRes = errorType == Result.ErrorType.NO_ACCESSIBLE_ROUTE
+                        ? R.string.navigation_no_accessible_route
+                        : R.string.navigation_no_route_available;
                 View root = getView();
                 if (root != null) {
-                    Snackbar.make(root, R.string.navigation_no_route_available, Snackbar.LENGTH_LONG).show();
-                    root.announceForAccessibility(getString(R.string.navigation_no_route_available));
+                    Snackbar.make(root, messageRes, Snackbar.LENGTH_LONG).show();
+                    root.announceForAccessibility(getString(messageRes));
                 }
             }
-            lastRouteWasError = true;
+            lastRouteErrorType = errorType;
         } else {
-            lastRouteWasError = false;
+            lastRouteErrorType = null;
         }
     }
 
@@ -418,13 +466,18 @@ public final class MapFragment extends Fragment {
         repositionRouteLine();
     }
 
-    /** Re-projects the active route's waypoints to screen space on every camera move. */
+    /**
+     * Re-projects the active route's waypoints to screen space on every camera move, and
+     * repositions the "Accessible route" label (AC 2) against the route's first waypoint
+     * alongside it -- same trigger, same reasoning as the route line itself.
+     */
     private void repositionRouteLine() {
         if (map == null || routeLineView == null) {
             return;
         }
         if (currentRouteWaypoints.isEmpty()) {
             routeLineView.setPoints(Collections.emptyList());
+            accessibleRouteLabelView.setVisibility(View.INVISIBLE);
             return;
         }
         List<PointF> screenPoints = new ArrayList<>(currentRouteWaypoints.size());
@@ -432,6 +485,16 @@ public final class MapFragment extends Fragment {
             screenPoints.add(map.getProjection().toScreenLocation(waypoint));
         }
         routeLineView.setPoints(screenPoints);
+
+        if (currentRouteIsAccessible) {
+            // Anchored just above the route's first waypoint (its start).
+            PointF startPoint = screenPoints.get(0);
+            accessibleRouteLabelView.setX(startPoint.x);
+            accessibleRouteLabelView.setY(startPoint.y - dpToPx(32f));
+            accessibleRouteLabelView.setVisibility(View.VISIBLE);
+        } else {
+            accessibleRouteLabelView.setVisibility(View.INVISIBLE);
+        }
     }
 
     private void repositionLocationMarker() {

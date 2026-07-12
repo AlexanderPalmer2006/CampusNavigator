@@ -16,6 +16,7 @@ import za.ac.wits.campusnavigator.domain.model.BuildingDetails;
 import za.ac.wits.campusnavigator.domain.model.CategoryTag;
 import za.ac.wits.campusnavigator.ui.R;
 import za.ac.wits.campusnavigator.ui.map.HasComputeRouteUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasGetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasLocationProvider;
 import za.ac.wits.campusnavigator.ui.navigation.NavigationViewModel;
@@ -61,8 +62,11 @@ public final class BuildingInfoFragment extends Fragment {
 
         HasComputeRouteUseCase computeRouteProvider = (HasComputeRouteUseCase) requireActivity();
         HasLocationProvider locationProviderHost = (HasLocationProvider) requireActivity();
+        HasGetAccessibilityPreferenceUseCase accessibilityPreferenceProvider =
+                (HasGetAccessibilityPreferenceUseCase) requireActivity();
         NavigationViewModelFactory navigationFactory = new NavigationViewModelFactory(
-                computeRouteProvider.getComputeRouteUseCase(), locationProviderHost.getLocationProvider());
+                computeRouteProvider.getComputeRouteUseCase(), locationProviderHost.getLocationProvider(),
+                accessibilityPreferenceProvider.getGetAccessibilityPreferenceUseCase());
         // Activity-scoped: the same instance BuildingInfoFragment and (after popping back)
         // MapFragment both reach through requireActivity() -- a route started here must
         // survive the pop-back-stack to the Map that renders it (Story 2.2 Dev Notes:

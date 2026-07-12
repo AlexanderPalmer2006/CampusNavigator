@@ -5,15 +5,19 @@ import androidx.lifecycle.ViewModel;
 import androidx.lifecycle.ViewModelProvider;
 import za.ac.wits.campusnavigator.domain.location.LocationProvider;
 import za.ac.wits.campusnavigator.domain.usecase.ComputeRouteUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.GetAccessibilityPreferenceUseCase;
 
 public final class NavigationViewModelFactory implements ViewModelProvider.Factory {
 
     private final ComputeRouteUseCase computeRouteUseCase;
     private final LocationProvider locationProvider;
+    private final GetAccessibilityPreferenceUseCase getAccessibilityPreferenceUseCase;
 
-    public NavigationViewModelFactory(ComputeRouteUseCase computeRouteUseCase, LocationProvider locationProvider) {
+    public NavigationViewModelFactory(ComputeRouteUseCase computeRouteUseCase, LocationProvider locationProvider,
+                                       GetAccessibilityPreferenceUseCase getAccessibilityPreferenceUseCase) {
         this.computeRouteUseCase = computeRouteUseCase;
         this.locationProvider = locationProvider;
+        this.getAccessibilityPreferenceUseCase = getAccessibilityPreferenceUseCase;
     }
 
     @NonNull
@@ -21,7 +25,7 @@ public final class NavigationViewModelFactory implements ViewModelProvider.Facto
     @SuppressWarnings("unchecked")
     public <T extends ViewModel> T create(@NonNull Class<T> modelClass) {
         if (modelClass.isAssignableFrom(NavigationViewModel.class)) {
-            return (T) new NavigationViewModel(computeRouteUseCase, locationProvider);
+            return (T) new NavigationViewModel(computeRouteUseCase, locationProvider, getAccessibilityPreferenceUseCase);
         }
         throw new IllegalArgumentException("Unknown ViewModel class: " + modelClass);
     }

@@ -20,9 +20,10 @@ import za.ac.wits.campusnavigator.navigationengine.Haversine;
  * {@code LocationProvider.Listener}, dispatching to a background thread, and calling
  * {@link #onPositionChanged} from there.</p>
  *
- * <p>Accessibility-Preference-triggered recompute (AD-12's other trigger) is not
- * implemented here -- that Setting doesn't exist until Epic 3. Not stubbed out
- * speculatively; nothing here precludes adding it later.</p>
+ * <p>Accessibility-Preference-triggered recompute (AD-12's other trigger) is implemented
+ * since Story 3.1 via {@link #onAccessibilityPreferenceChanged}. Both recompute triggers
+ * funnel through the same {@link #computeAndNotify} path, never duplicated per-feature,
+ * per AD-12.</p>
  *
  * <p>Owned by an Activity-scoped ViewModel in :ui (Story 2.2 Dev Notes) -- this class
  * itself has no Android/ViewModel dependency, per AD-5.</p>
@@ -40,6 +41,7 @@ public final class NavigationSession {
 
     private Building destination;
     private Position lastComputedPosition;
+    private boolean avoidStairs;
     private Listener listener;
 
     public NavigationSession(ComputeRouteUseCase computeRouteUseCase) {
@@ -47,8 +49,9 @@ public final class NavigationSession {
     }
 
     /** Starts (or restarts, for a new destination) an active navigation session. */
-    public void start(Building destination, Position currentPosition, Listener listener) {
+    public void start(Building destination, Position currentPosition, boolean avoidStairs, Listener listener) {
         this.destination = destination;
+        this.avoidStairs = avoidStairs;
         this.listener = listener;
         computeAndNotify(currentPosition);
     }
@@ -80,9 +83,26 @@ public final class NavigationSession {
         }
     }
 
+    /**
+     * Call whenever the Accessibility Preference changes (AD-12's second recompute
+     * trigger, AC 4). If a route is currently active, immediately recomputes against the
+     * last known position -- no new position sample needed. If no destination is active,
+     * the value is simply recorded for the next {@link #start} call (which itself always
+     * re-reads the current persisted preference before calling this class -- see
+     * NavigationViewModel), so no recompute happens here in that case. May perform Room
+     * I/O -- callers MUST invoke this off the main thread.
+     */
+    public void onAccessibilityPreferenceChanged(boolean avoidStairs) {
+        this.avoidStairs = avoidStairs;
+        if (destination == null || lastComputedPosition == null) {
+            return;
+        }
+        computeAndNotify(lastComputedPosition);
+    }
+
     private void computeAndNotify(Position position) {
         lastComputedPosition = position;
-        Result<Route> result = computeRouteUseCase.execute(position, destination);
+        Result<Route> result = computeRouteUseCase.execute(position, destination, avoidStairs);
         if (listener != null) {
             listener.onRouteUpdated(result);
         }

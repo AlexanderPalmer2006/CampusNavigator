@@ -1,0 +1,36 @@
+package za.ac.wits.campusnavigator.data.repository;
+
+import za.ac.wits.campusnavigator.data.local.SettingDao;
+import za.ac.wits.campusnavigator.data.local.SettingEntity;
+import za.ac.wits.campusnavigator.domain.repository.SettingsRepository;
+
+/**
+ * Implements the :domain-defined SettingsRepository against Room's user-data database.
+ * Story 3.1.
+ */
+public final class SettingsRepositoryImpl implements SettingsRepository {
+
+    private static final String KEY_ACCESSIBILITY_PREFERENCE = "accessibility_preference";
+    private static final String VALUE_TRUE = "true";
+    private static final String VALUE_FALSE = "false";
+
+    private final SettingDao settingDao;
+
+    public SettingsRepositoryImpl(SettingDao settingDao) {
+        this.settingDao = settingDao;
+    }
+
+    @Override
+    public boolean isAccessibilityPreferenceEnabled() {
+        SettingEntity entity = settingDao.getByKey(KEY_ACCESSIBILITY_PREFERENCE);
+        return entity != null && VALUE_TRUE.equals(entity.value);
+    }
+
+    @Override
+    public void setAccessibilityPreferenceEnabled(boolean enabled) {
+        SettingEntity entity = new SettingEntity();
+        entity.key = KEY_ACCESSIBILITY_PREFERENCE;
+        entity.value = enabled ? VALUE_TRUE : VALUE_FALSE;
+        settingDao.upsert(entity);
+    }
+}

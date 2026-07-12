@@ -1,6 +1,7 @@
 package za.ac.wits.campusnavigator.domain.usecase;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
@@ -28,11 +29,12 @@ public class ComputeRouteUseCaseTest {
         Position currentPosition = new Position(-26.1908, 28.0261, 8.0f);
         Building destination = new Building(2L, "Robert Sobukwe Block", -26.1912, 28.0298, "wits-main", "RSB", null);
 
-        Result<Route> result = useCase.execute(currentPosition, destination);
+        Result<Route> result = useCase.execute(currentPosition, destination, false);
 
         assertTrue(result instanceof Result.Success);
         Route route = ((Result.Success<Route>) result).getValue();
         assertEquals(4, route.getWaypoints().size());
+        assertFalse("avoidStairs=false must not mark the route accessible", route.isAccessible());
     }
 
     @Test
@@ -46,7 +48,7 @@ public class ComputeRouteUseCaseTest {
         Position currentPosition = new Position(0.0, 0.0, 8.0f);
         Building destination = new Building(2L, "Far Building", 1.0, 1.0, "wits-main", "FAR", null);
 
-        Result<Route> result = useCase.execute(currentPosition, destination);
+        Result<Route> result = useCase.execute(currentPosition, destination, false);
 
         assertTrue(result instanceof Result.Error);
         assertEquals(Result.ErrorType.NO_ROUTE_AVAILABLE, ((Result.Error<Route>) result).getErrorType());
@@ -60,8 +62,50 @@ public class ComputeRouteUseCaseTest {
         Position currentPosition = new Position(0.0, 0.0, 8.0f);
         Building destination = new Building(1L, "Anywhere", 1.0, 1.0, "wits-main", "ANY", null);
 
-        Result<Route> result = useCase.execute(currentPosition, destination);
+        Result<Route> result = useCase.execute(currentPosition, destination, false);
 
         assertTrue(result instanceof Result.Error);
+    }
+
+    @Test
+    public void avoidStairs_detoursAroundStairEdge_andMarksRouteAccessible() {
+        // Direct edge is stairs (short); an alternate step-free path exists via node 3.
+        List<Node> nodes = new ArrayList<>();
+        nodes.add(new Node(1L, 0.0, 0.0, "wits-main", "OUTDOOR"));
+        nodes.add(new Node(2L, 0.0, 0.003, "wits-main", "OUTDOOR"));
+        nodes.add(new Node(3L, 0.0, 0.0015, "wits-main", "OUTDOOR"));
+        List<Edge> edges = new ArrayList<>();
+        edges.add(new Edge(1L, 1L, 2L, 50.0, true));
+        edges.add(new Edge(2L, 1L, 3L, 100.0, false));
+        edges.add(new Edge(3L, 3L, 2L, 100.0, false));
+        ComputeRouteUseCase useCase = new ComputeRouteUseCase(new FakeRoutingRepository(nodes, edges));
+
+        Position currentPosition = new Position(0.0, 0.0, 8.0f);
+        Building destination = new Building(2L, "Destination", 0.0, 0.003, "wits-main", "DEST", null);
+
+        Result<Route> result = useCase.execute(currentPosition, destination, true);
+
+        assertTrue(result instanceof Result.Success);
+        Route route = ((Result.Success<Route>) result).getValue();
+        assertEquals(5, route.getWaypoints().size()); // start + n1 + n3 + n2 + dest, detoured
+        assertTrue("avoidStairs=true must mark the successful route accessible", route.isAccessible());
+    }
+
+    @Test
+    public void avoidStairs_returnsErrorNoAccessibleRoute_whenOnlyPathRequiresStairs() {
+        // The only edge connecting start and destination is a stair edge.
+        List<Node> nodes = new ArrayList<>();
+        nodes.add(new Node(1L, 0.0, 0.0, "wits-main", "OUTDOOR"));
+        nodes.add(new Node(2L, 0.0, 0.001, "wits-main", "OUTDOOR"));
+        List<Edge> edges = Collections.singletonList(new Edge(1L, 1L, 2L, 100.0, true));
+        ComputeRouteUseCase useCase = new ComputeRouteUseCase(new FakeRoutingRepository(nodes, edges));
+
+        Position currentPosition = new Position(0.0, 0.0, 8.0f);
+        Building destination = new Building(2L, "Destination", 0.0, 0.001, "wits-main", "DEST", null);
+
+        Result<Route> result = useCase.execute(currentPosition, destination, true);
+
+        assertTrue(result instanceof Result.Error);
+        assertEquals(Result.ErrorType.NO_ACCESSIBLE_ROUTE, ((Result.Error<Route>) result).getErrorType());
     }
 }

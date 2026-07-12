@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_base"
+    android:orientation="vertical">
+
+    <!-- DESIGN.md: Settings rows and list dividers are unrounded (hairline only), not
+         {rounded.md} card styling like Building/Common-Pick cards. Row is min 48dp tall
+         and fully tappable (label + switch), not just the switch thumb. -->
+    <LinearLayout
+        android:id="@+id/accessibilityPreferenceRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp">
+
+        <TextView
+            android:id="@+id/accessibilityPreferenceLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/settings_accessibility_preference_label"
+            android:textColor="@color/ink_primary"
+            android:textSize="16sp" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/accessibilityPreferenceSwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
+            android:contentDescription="@string/settings_accessibility_preference_label" />
+
+    </LinearLayout>
+
+    <!-- Hairline divider (DESIGN.md: "Settings rows and list dividers are unrounded, hairline only"). -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/border_hairline" />
+
+</LinearLayout>

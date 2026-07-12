@@ -9,27 +9,34 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import za.ac.wits.campusnavigator.domain.location.LocationProvider;
 import za.ac.wits.campusnavigator.domain.search.SearchBuildingsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.ComputeRouteUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.GetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingsUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.SetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.buildinginfo.BuildingInfoFragment;
 import za.ac.wits.campusnavigator.ui.common.PlaceholderFragment;
 import za.ac.wits.campusnavigator.ui.map.HasBuildingNavigation;
 import za.ac.wits.campusnavigator.ui.map.HasComputeRouteUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasGetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasLocationProvider;
 import za.ac.wits.campusnavigator.ui.map.HasSearchBuildingsUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasSetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.MapFragment;
+import za.ac.wits.campusnavigator.ui.settings.SettingsFragment;
 
 /**
  * Hosts the 4-tab bottom navigation shell (EXPERIENCE.md Information Architecture, Story
- * 1.1 AC 3). Map has real content; Common Picks/Favourites/Settings show a placeholder
- * until their own epics fill them in. Also hosts the Building Info Page (Story 2.1) as a
- * contextual, back-stacked destination reached from the Map tab, not a nav tab itself.
+ * 1.1 AC 3). Map has real content; Settings has real content since Story 3.1; Common
+ * Picks/Favourites still show a placeholder until their own epics (4, 5) fill them in.
+ * Also hosts the Building Info Page (Story 2.1) as a contextual, back-stacked destination
+ * reached from the Map tab, not a nav tab itself.
  */
 public final class MainActivity extends AppCompatActivity
         implements HasGetBuildingsUseCase, HasLocationProvider, HasSearchBuildingsUseCase,
-        HasGetBuildingDetailsUseCase, HasBuildingNavigation, HasComputeRouteUseCase {
+        HasGetBuildingDetailsUseCase, HasBuildingNavigation, HasComputeRouteUseCase,
+        HasGetAccessibilityPreferenceUseCase, HasSetAccessibilityPreferenceUseCase {
 
     private int selectedNavId;
 
@@ -53,9 +60,12 @@ public final class MainActivity extends AppCompatActivity
                 selectedNavId = id;
                 showFragment(new MapFragment(), false);
                 return true;
+            } else if (id == R.id.nav_settings) {
+                selectedNavId = id;
+                showFragment(new SettingsFragment(), false);
+                return true;
             } else if (id == R.id.nav_common_picks
-                    || id == R.id.nav_favourites
-                    || id == R.id.nav_settings) {
+                    || id == R.id.nav_favourites) {
                 selectedNavId = id;
                 showFragment(new PlaceholderFragment(), false);
                 return true;
@@ -108,6 +118,16 @@ public final class MainActivity extends AppCompatActivity
     @Override
     public ComputeRouteUseCase getComputeRouteUseCase() {
         return ((CampusNavigatorApplication) getApplication()).getComputeRouteUseCase();
+    }
+
+    @Override
+    public GetAccessibilityPreferenceUseCase getGetAccessibilityPreferenceUseCase() {
+        return ((CampusNavigatorApplication) getApplication()).getGetAccessibilityPreferenceUseCase();
+    }
+
+    @Override
+    public SetAccessibilityPreferenceUseCase getSetAccessibilityPreferenceUseCase() {
+        return ((CampusNavigatorApplication) getApplication()).getSetAccessibilityPreferenceUseCase();
     }
 
     @Override
