@@ -56,6 +56,14 @@ public final class SettingsFragment extends Fragment {
                 new ViewModelProvider(requireActivity(), navigationFactory).get(NavigationViewModel.class);
 
         SwitchMaterial switchView = view.findViewById(R.id.accessibilityPreferenceSwitch);
+        View row = view.findViewById(R.id.accessibilityPreferenceRow);
+
+        // Code review fix (2026-07-12): Task 4 specifies the whole row is tappable/48dp,
+        // not just the switch thumb -- toggling the switch here (rather than duplicating
+        // the persist-and-notify logic) reuses switchView's own listener as the single
+        // source of truth for "the preference changed," same as tapping the switch
+        // directly would.
+        row.setOnClickListener(v -> switchView.toggle());
 
         // Observe the persisted value first, set the switch's initial state, and only then
         // attach the change listener -- otherwise this programmatic setChecked() call would

@@ -116,8 +116,8 @@ public class NavigationSessionTest {
         NavigationSession session = new NavigationSession(newComputeRouteUseCaseWithStairEdge());
         RecordingListener listener = new RecordingListener();
         session.start(destination(), new Position(BASE_LAT, BASE_LON, 8.0f), false, listener);
-        assertTrue("Precondition: initial route uses the direct (stair) edge",
-                ((Result.Success<Route>) listener.lastResult).getValue().getWaypoints().size() == 4);
+        assertEquals("Precondition: initial route uses the direct (stair) edge",
+                4, ((Result.Success<Route>) listener.lastResult).getValue().getWaypoints().size());
 
         session.onAccessibilityPreferenceChanged(true);
 

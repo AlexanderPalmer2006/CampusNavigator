@@ -42,6 +42,17 @@ import za.ac.wits.campusnavigator.domain.usecase.GetAccessibilityPreferenceUseCa
  * for AC 4 (toggled while a route is active): SettingsFragment calls it directly on this
  * same Activity-scoped instance after persisting the new value, the same
  * two-Fragments-one-instance bridge Story 2.2 established for starting navigation itself.</p>
+ *
+ * <p>{@link #getRouteOriginPosition()} (code review fix, 2026-07-12) is the fixed point a
+ * route began from, set once per {@link #startNavigation} call and never overwritten by a
+ * later recompute -- deliberately tracked here rather than read off {@code Route}'s own
+ * first waypoint, which is the *current* position at computation time and therefore moves
+ * on every ~15m deviation-triggered recompute. AC 2's "persistent... label near the
+ * route's start" means the point navigation began, not wherever the user currently is.
+ * Living here (Activity-scoped) rather than in MapFragment also means it survives
+ * MapFragment's view being destroyed/recreated across a Building-Info-Page round trip
+ * (Story 2.1's established back-stack-restore gotcha), unlike a MapFragment-local field
+ * would.</p>
  */
 public final class NavigationViewModel extends ViewModel implements LocationProvider.Listener {
 
@@ -53,6 +64,7 @@ public final class NavigationViewModel extends ViewModel implements LocationProv
 
     private Position lastKnownPosition;
     private String activeDestinationName;
+    private Position routeOriginPosition;
 
     public NavigationViewModel(@NonNull ComputeRouteUseCase computeRouteUseCase, @NonNull LocationProvider locationProvider,
                                 @NonNull GetAccessibilityPreferenceUseCase getAccessibilityPreferenceUseCase) {
@@ -73,6 +85,16 @@ public final class NavigationViewModel extends ViewModel implements LocationProv
     }
 
     /**
+     * The fixed point the active/last-started navigation began from -- for the
+     * "Accessible route" label (AC 2), which must anchor near where the walk started, not
+     * wherever a later recompute's current position happens to be.
+     */
+    @Nullable
+    public Position getRouteOriginPosition() {
+        return routeOriginPosition;
+    }
+
+    /**
      * @return false if no position is available yet -- the caller should show the
      * equivalent no-position messaging instead of starting navigation.
      */
@@ -81,6 +103,7 @@ public final class NavigationViewModel extends ViewModel implements LocationProv
             return false;
         }
         activeDestinationName = destination.getName();
+        routeOriginPosition = lastKnownPosition;
         Position startPosition = lastKnownPosition;
         executorService.execute(() -> {
             boolean avoidStairs = getAccessibilityPreferenceUseCase.execute();
@@ -124,6 +147,16 @@ public final class NavigationViewModel extends ViewModel implements LocationProv
         if (activeRoute.getValue() != null) {
             activeRoute.postValue(Result.notFound());
         }
+        // Code review fix (2026-07-12): also end the NavigationSession itself, not just
+        // clear the rendered state. Without this, NavigationSession kept its destination
+        // and lastComputedPosition cached internally -- a later Accessibility Preference
+        // toggle (AD-12's other recompute trigger) would still see an "active" session and
+        // recompute against that stale, no-longer-current position, silently resurrecting
+        // a route the app had just told the user it couldn't show. Dispatched through the
+        // same single-thread executor as every other NavigationSession mutation, not
+        // called directly here, to preserve the existing no-concurrent-field-access
+        // invariant (this callback itself runs on the main thread).
+        executorService.execute(navigationSession::stop);
     }
 
     @Override

@@ -280,9 +280,10 @@ public final class MapFragment extends Fragment {
         label.setPadding(paddingH, paddingV, paddingH, paddingV);
         // Not independently tappable (no AC/Interaction Primitive calls for it), but still
         // a real informational element TalkBack must announce (Accessibility Floor) --
-        // a plain TextView with non-empty text already participates in the accessibility
-        // tree by default, unlike RouteLineView's bare Canvas View which needed an explicit
-        // IMPORTANT_FOR_ACCESSIBILITY_YES override.
+        // explicit IMPORTANT_FOR_ACCESSIBILITY_YES (code review fix, 2026-07-12: matches
+        // RouteLineView's own Story 2.2 review-fixed posture exactly, rather than relying
+        // on a plain TextView's default accessibility-tree participation).
+        label.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
         label.setClickable(false);
         return label;
     }
@@ -468,8 +469,20 @@ public final class MapFragment extends Fragment {
 
     /**
      * Re-projects the active route's waypoints to screen space on every camera move, and
-     * repositions the "Accessible route" label (AC 2) against the route's first waypoint
-     * alongside it -- same trigger, same reasoning as the route line itself.
+     * repositions the "Accessible route" label (AC 2) alongside it.
+     *
+     * <p>Code review fix (2026-07-12): the label anchors to {@code
+     * navigationViewModel.getRouteOriginPosition()} -- the fixed point navigation began
+     * from -- not to {@code currentRouteWaypoints.get(0)}. The route's own first waypoint
+     * is the *current* position at computation time (see {@code ComputeRouteUseCase}), so
+     * it moves on every ~15m deviation-triggered recompute; anchoring the label there made
+     * it visibly re-jump toward the user's live location on every recompute instead of
+     * staying "near the route's start" as AC 2 and DESIGN.md's walking-route component
+     * both specify. Reading through the Activity-scoped ViewModel (rather than caching the
+     * origin locally in this Fragment) also means the correct origin survives this
+     * Fragment's view being destroyed and recreated across a Building-Info-Page round trip
+     * (Story 2.1's established back-stack-restore risk class), instead of an approximation
+     * reset on every {@code onViewCreated()}.</p>
      */
     private void repositionRouteLine() {
         if (map == null || routeLineView == null) {
@@ -486,11 +499,16 @@ public final class MapFragment extends Fragment {
         }
         routeLineView.setPoints(screenPoints);
 
-        if (currentRouteIsAccessible) {
-            // Anchored just above the route's first waypoint (its start).
-            PointF startPoint = screenPoints.get(0);
-            accessibleRouteLabelView.setX(startPoint.x);
-            accessibleRouteLabelView.setY(startPoint.y - dpToPx(32f));
+        Position origin = currentRouteIsAccessible ? navigationViewModel.getRouteOriginPosition() : null;
+        if (origin != null) {
+            PointF originScreenPoint = map.getProjection().toScreenLocation(
+                    new LatLng(origin.getLatitude(), origin.getLongitude()));
+            // Centered horizontally on the anchor point -- same convention as the building
+            // labels (Gravity.CENTER + min touch target) rather than left-aligning the
+            // pill's edge on the point (code review fix, 2026-07-12).
+            float labelWidth = accessibleRouteLabelView.getWidth();
+            accessibleRouteLabelView.setX(originScreenPoint.x - labelWidth / 2f);
+            accessibleRouteLabelView.setY(originScreenPoint.y - dpToPx(32f));
             accessibleRouteLabelView.setVisibility(View.VISIBLE);
         } else {
             accessibleRouteLabelView.setVisibility(View.INVISIBLE);
