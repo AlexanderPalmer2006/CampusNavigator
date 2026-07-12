@@ -1,5 +1,6 @@
 package za.ac.wits.campusnavigator.domain.repository;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import za.ac.wits.campusnavigator.domain.model.Building;
@@ -25,7 +26,7 @@ public final class FakeBuildingRepository implements BuildingRepository {
 
     @Override
     public List<Building> getLandmarkPicks() {
-        List<Building> picks = new java.util.ArrayList<>();
+        List<Building> picks = new ArrayList<>();
         for (Building building : buildings) {
             if (building.isLandmarkPick()) {
                 picks.add(building);
