@@ -16,4 +16,14 @@ public class CategoryTagEntity {
 
     @ColumnInfo(name = "name")
     public String name;
+
+    /**
+     * Curated flag (Story 4.2) marking this tag as a "Category Pick" tile on the Common
+     * Picks tab (e.g. "bathroom", "cafeteria") -- separate from the purely descriptive
+     * tags shown on the Building Info Page (e.g. "library", "museum"). Mirrors
+     * {@link BuildingEntity#isLandmarkPick}'s exact same curation-flag pattern, applied
+     * one level over. A tag can be Category-Pick-curated, descriptive, both, or neither.
+     */
+    @ColumnInfo(name = "is_common_pick_category")
+    public boolean isCommonPickCategory;
 }

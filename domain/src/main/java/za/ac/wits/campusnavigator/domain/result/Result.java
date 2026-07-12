@@ -61,6 +61,14 @@ public abstract class Result<T> {
     public enum ErrorType {
         NO_ROUTE_AVAILABLE,
         /** Story 3.1, AD-8: no step-free path exists while the Accessibility Preference is on. */
-        NO_ACCESSIBLE_ROUTE
+        NO_ACCESSIBLE_ROUTE,
+        /**
+         * Story 4.2, AD-7/AD-9 (already anticipated by name in ARCHITECTURE-SPINE.md):
+         * no Building carries the requested Category Pick tag, or none of the Buildings
+         * that do are reachable by any computed route -- both present identically to the
+         * user ("none found nearby"), so both share this one ErrorType by deliberate
+         * design (see FindNearestCategoryPickUseCase's own Javadoc).
+         */
+        NO_CATEGORY_MATCH
     }
 }

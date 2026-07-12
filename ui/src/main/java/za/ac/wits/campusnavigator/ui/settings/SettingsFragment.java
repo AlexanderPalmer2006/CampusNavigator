@@ -12,6 +12,7 @@ import com.google.android.material.switchmaterial.SwitchMaterial;
 import za.ac.wits.campusnavigator.domain.location.LocationProvider;
 import za.ac.wits.campusnavigator.ui.R;
 import za.ac.wits.campusnavigator.ui.map.HasComputeRouteUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasFindNearestCategoryPickUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasLocationProvider;
 import za.ac.wits.campusnavigator.ui.map.HasSetAccessibilityPreferenceUseCase;
@@ -48,10 +49,11 @@ public final class SettingsFragment extends Fragment {
         // was started from.
         HasComputeRouteUseCase computeRouteProvider = (HasComputeRouteUseCase) requireActivity();
         HasLocationProvider locationProviderHost = (HasLocationProvider) requireActivity();
+        HasFindNearestCategoryPickUseCase categoryPickProvider = (HasFindNearestCategoryPickUseCase) requireActivity();
         LocationProvider locationProvider = locationProviderHost.getLocationProvider();
         NavigationViewModelFactory navigationFactory = new NavigationViewModelFactory(
                 computeRouteProvider.getComputeRouteUseCase(), locationProvider,
-                getProvider.getGetAccessibilityPreferenceUseCase());
+                getProvider.getGetAccessibilityPreferenceUseCase(), categoryPickProvider.getFindNearestCategoryPickUseCase());
         NavigationViewModel navigationViewModel =
                 new ViewModelProvider(requireActivity(), navigationFactory).get(NavigationViewModel.class);
 

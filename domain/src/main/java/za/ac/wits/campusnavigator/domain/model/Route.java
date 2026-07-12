@@ -13,15 +13,24 @@ import java.util.List;
  * UI flag, so the "Accessible route" label (AC 2) can never drift out of sync with what
  * was actually computed. True whenever the preference was on at compute time, regardless
  * of whether the resulting path happened to need a detour around any stairs.</p>
+ *
+ * <p>{@code distanceMeters} (Story 4.2, AD-7) is the real walked path length -- the sum of
+ * the great-circle distance between every consecutive pair of {@code waypoints}, i.e. the
+ * length of the exact polyline this route renders as. This is deliberately not a
+ * straight-line current-position-to-destination shortcut: it's what lets
+ * {@code FindNearestCategoryPickUseCase} compare candidate Buildings by real walking
+ * distance rather than as-the-crow-flies proximity.</p>
  */
 public final class Route {
 
     private final List<Position> waypoints;
     private final boolean accessible;
+    private final double distanceMeters;
 
-    public Route(List<Position> waypoints, boolean accessible) {
+    public Route(List<Position> waypoints, boolean accessible, double distanceMeters) {
         this.waypoints = waypoints;
         this.accessible = accessible;
+        this.distanceMeters = distanceMeters;
     }
 
     public List<Position> getWaypoints() {
@@ -30,5 +39,9 @@ public final class Route {
 
     public boolean isAccessible() {
         return accessible;
+    }
+
+    public double getDistanceMeters() {
+        return distanceMeters;
     }
 }

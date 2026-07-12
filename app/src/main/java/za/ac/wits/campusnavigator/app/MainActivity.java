@@ -9,9 +9,11 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import za.ac.wits.campusnavigator.domain.location.LocationProvider;
 import za.ac.wits.campusnavigator.domain.search.SearchBuildingsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.ComputeRouteUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.FindNearestCategoryPickUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingsUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.GetCommonPickCategoriesUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetLandmarkPicksUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.SetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.buildinginfo.BuildingInfoFragment;
@@ -20,9 +22,11 @@ import za.ac.wits.campusnavigator.ui.commonpicks.CommonPicksFragment;
 import za.ac.wits.campusnavigator.ui.map.HasBottomNavigation;
 import za.ac.wits.campusnavigator.ui.map.HasBuildingNavigation;
 import za.ac.wits.campusnavigator.ui.map.HasComputeRouteUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasFindNearestCategoryPickUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingsUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasGetCommonPickCategoriesUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetLandmarkPicksUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasLocationProvider;
 import za.ac.wits.campusnavigator.ui.map.HasSearchBuildingsUseCase;
@@ -41,7 +45,8 @@ public final class MainActivity extends AppCompatActivity
         implements HasGetBuildingsUseCase, HasLocationProvider, HasSearchBuildingsUseCase,
         HasGetBuildingDetailsUseCase, HasBuildingNavigation, HasComputeRouteUseCase,
         HasGetAccessibilityPreferenceUseCase, HasSetAccessibilityPreferenceUseCase,
-        HasGetLandmarkPicksUseCase, HasBottomNavigation {
+        HasGetLandmarkPicksUseCase, HasBottomNavigation, HasGetCommonPickCategoriesUseCase,
+        HasFindNearestCategoryPickUseCase {
 
     private BottomNavigationView bottomNavView;
 
@@ -154,6 +159,16 @@ public final class MainActivity extends AppCompatActivity
     @Override
     public GetLandmarkPicksUseCase getGetLandmarkPicksUseCase() {
         return ((CampusNavigatorApplication) getApplication()).getGetLandmarkPicksUseCase();
+    }
+
+    @Override
+    public GetCommonPickCategoriesUseCase getGetCommonPickCategoriesUseCase() {
+        return ((CampusNavigatorApplication) getApplication()).getGetCommonPickCategoriesUseCase();
+    }
+
+    @Override
+    public FindNearestCategoryPickUseCase getFindNearestCategoryPickUseCase() {
+        return ((CampusNavigatorApplication) getApplication()).getFindNearestCategoryPickUseCase();
     }
 
     @Override

@@ -3,6 +3,7 @@ package za.ac.wits.campusnavigator.domain.repository;
 import java.util.List;
 import za.ac.wits.campusnavigator.domain.model.Building;
 import za.ac.wits.campusnavigator.domain.model.BuildingDetails;
+import za.ac.wits.campusnavigator.domain.model.CategoryTag;
 
 /**
  * Repository seam between ViewModels/use cases and the data layer (ARCHITECTURE-SPINE.md
@@ -32,4 +33,20 @@ public interface BuildingRepository {
      * {@link #getAllBuildings()}.
      */
     BuildingDetails getBuildingDetails(long buildingId);
+
+    /**
+     * Returns every Building carrying the given category tag name (e.g. "bathroom") --
+     * never null, an empty list means no Building carries that tag (Story 4.2, AD-7). Same
+     * "empty list is a valid state, real I/O failure throws" convention as
+     * {@link #getAllBuildings()}; the meaningful "no match" *expected-failure* outcome is
+     * derived one layer up, in {@code FindNearestCategoryPickUseCase}.
+     */
+    List<Building> getBuildingsByCategory(String categoryName);
+
+    /**
+     * Returns every {@link CategoryTag} curated as a "Category Pick" tile on the Common
+     * Picks tab (Story 4.2) -- never null, an empty list means none are curated. Same
+     * convention as {@link #getLandmarkPicks()}, applied to CategoryTag instead of Building.
+     */
+    List<CategoryTag> getCommonPickCategories();
 }

@@ -9,12 +9,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import za.ac.wits.campusnavigator.domain.location.LocationProvider;
 import za.ac.wits.campusnavigator.domain.model.Building;
+import za.ac.wits.campusnavigator.domain.model.CategoryTag;
 import za.ac.wits.campusnavigator.domain.model.Position;
 import za.ac.wits.campusnavigator.domain.model.Route;
 import za.ac.wits.campusnavigator.domain.navigation.NavigationSession;
 import za.ac.wits.campusnavigator.domain.result.Result;
 import za.ac.wits.campusnavigator.domain.usecase.ComputeRouteUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.FindNearestCategoryPickUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetAccessibilityPreferenceUseCase;
+import za.ac.wits.campusnavigator.ui.common.Event;
 
 /**
  * Activity-scoped (AD-12 Dev Notes: NavigationSession lives in an Activity-scoped
@@ -53,13 +56,24 @@ import za.ac.wits.campusnavigator.domain.usecase.GetAccessibilityPreferenceUseCa
  * MapFragment's view being destroyed/recreated across a Building-Info-Page round trip
  * (Story 2.1's established back-stack-restore gotcha), unlike a MapFragment-local field
  * would.</p>
+ *
+ * <p>Story 4.2: {@link #startNavigationToNearestCategoryPick} resolves a Category Pick to
+ * its nearest Building (real walking distance, AD-7) and, on success, starts navigation to
+ * it through this exact same {@code NavigationSession}/{@code ComputeRouteUseCase} path --
+ * no separate ad hoc route-rendering logic for Category Picks (ARCHITECTURE-SPINE.md's
+ * Common Picks Capability Map row). The result is published via
+ * {@link #getCategoryPickResolution()}, wrapped in {@link Event} rather than plain
+ * {@code LiveData} -- see that class's Javadoc for why a one-shot resolution result needs
+ * different redelivery semantics than {@link #getActiveRoute()}'s persistent state.</p>
  */
 public final class NavigationViewModel extends ViewModel implements LocationProvider.Listener {
 
     private final MutableLiveData<Result<Route>> activeRoute = new MutableLiveData<>();
+    private final MutableLiveData<Event<Result<Building>>> categoryPickResolution = new MutableLiveData<>();
     private final NavigationSession navigationSession;
     private final LocationProvider locationProvider;
     private final GetAccessibilityPreferenceUseCase getAccessibilityPreferenceUseCase;
+    private final FindNearestCategoryPickUseCase findNearestCategoryPickUseCase;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
     private Position lastKnownPosition;
@@ -67,15 +81,22 @@ public final class NavigationViewModel extends ViewModel implements LocationProv
     private Position routeOriginPosition;
 
     public NavigationViewModel(@NonNull ComputeRouteUseCase computeRouteUseCase, @NonNull LocationProvider locationProvider,
-                                @NonNull GetAccessibilityPreferenceUseCase getAccessibilityPreferenceUseCase) {
+                                @NonNull GetAccessibilityPreferenceUseCase getAccessibilityPreferenceUseCase,
+                                @NonNull FindNearestCategoryPickUseCase findNearestCategoryPickUseCase) {
         this.navigationSession = new NavigationSession(computeRouteUseCase);
         this.locationProvider = locationProvider;
         this.getAccessibilityPreferenceUseCase = getAccessibilityPreferenceUseCase;
+        this.findNearestCategoryPickUseCase = findNearestCategoryPickUseCase;
         locationProvider.addListener(this);
     }
 
     public LiveData<Result<Route>> getActiveRoute() {
         return activeRoute;
+    }
+
+    /** One-shot Category Pick resolution result -- see {@link Event}'s Javadoc. */
+    public LiveData<Event<Result<Building>>> getCategoryPickResolution() {
+        return categoryPickResolution;
     }
 
     /** Destination name of the active/last-started navigation, for accessibility labeling. */
@@ -108,6 +129,39 @@ public final class NavigationViewModel extends ViewModel implements LocationProv
         executorService.execute(() -> {
             boolean avoidStairs = getAccessibilityPreferenceUseCase.execute();
             navigationSession.start(destination, startPosition, avoidStairs, activeRoute::postValue);
+        });
+        return true;
+    }
+
+    /**
+     * Resolves {@code category} to its nearest Building by real walking distance (AD-7)
+     * and, on success, starts navigation to it -- same {@code false}-if-no-position
+     * contract as {@link #startNavigation} (reuses the exact same no-position messaging,
+     * no separate message for this path). On success, deliberately re-implements
+     * {@code startNavigation}'s "set activeDestinationName/routeOriginPosition, call
+     * navigationSession.start(...)" sequence inline rather than calling
+     * {@code startNavigation(nearest)} as a second step, to avoid a second
+     * {@code getAccessibilityPreferenceUseCase.execute()} Room read and a second
+     * (redundant, already-known-true) position check.
+     *
+     * @return false if no position is available yet.
+     */
+    public boolean startNavigationToNearestCategoryPick(CategoryTag category) {
+        if (lastKnownPosition == null) {
+            return false;
+        }
+        Position startPosition = lastKnownPosition;
+        executorService.execute(() -> {
+            boolean avoidStairs = getAccessibilityPreferenceUseCase.execute();
+            Result<Building> resolution =
+                    findNearestCategoryPickUseCase.execute(startPosition, category.getName(), avoidStairs);
+            if (resolution instanceof Result.Success) {
+                Building nearest = ((Result.Success<Building>) resolution).getValue();
+                activeDestinationName = nearest.getName();
+                routeOriginPosition = startPosition;
+                navigationSession.start(nearest, startPosition, avoidStairs, activeRoute::postValue);
+            }
+            categoryPickResolution.postValue(new Event<>(resolution));
         });
         return true;
     }

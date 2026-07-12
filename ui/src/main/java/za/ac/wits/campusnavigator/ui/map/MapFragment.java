@@ -153,6 +153,7 @@ public final class MapFragment extends Fragment {
         HasComputeRouteUseCase computeRouteProvider = (HasComputeRouteUseCase) requireActivity();
         HasGetAccessibilityPreferenceUseCase accessibilityPreferenceProvider =
                 (HasGetAccessibilityPreferenceUseCase) requireActivity();
+        HasFindNearestCategoryPickUseCase categoryPickProvider = (HasFindNearestCategoryPickUseCase) requireActivity();
         buildingNavigator = (HasBuildingNavigation) requireActivity();
         locationProvider = locationProviderHost.getLocationProvider();
 
@@ -165,7 +166,8 @@ public final class MapFragment extends Fragment {
         // state it's already in (Story 2.2 Dev Notes: "Resolved Design: NavigationViewModel").
         NavigationViewModelFactory navigationFactory =
                 new NavigationViewModelFactory(computeRouteProvider.getComputeRouteUseCase(), locationProvider,
-                        accessibilityPreferenceProvider.getGetAccessibilityPreferenceUseCase());
+                        accessibilityPreferenceProvider.getGetAccessibilityPreferenceUseCase(),
+                        categoryPickProvider.getFindNearestCategoryPickUseCase());
         navigationViewModel = new ViewModelProvider(requireActivity(), navigationFactory).get(NavigationViewModel.class);
 
         // Added before the location marker so the route line renders underneath it (and
