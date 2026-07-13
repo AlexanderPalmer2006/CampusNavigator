@@ -110,10 +110,16 @@ public final class FavouritesAdapter extends BaseAdapter {
         }
 
         long buildingId = item.getBuildingId();
-        unsaveIcon.setContentDescription(context.getString(R.string.favourite_unsave_description,
-                resolution instanceof Result.Success
-                        ? ((Result.Success<Building>) resolution).getValue().getName()
-                        : context.getString(R.string.favourite_stale_building)));
+        // Code review fix (2026-07-13): a stale row used to substitute
+        // favourite_stale_building's full sentence directly into
+        // favourite_unsave_description's %1$s placeholder, producing the grammatically
+        // broken "Remove This place is no longer available from Favourites" when read
+        // aloud. favourite_unsave_stale_description is a dedicated, coherent string for
+        // exactly this state instead.
+        unsaveIcon.setContentDescription(resolution instanceof Result.Success
+                ? context.getString(R.string.favourite_unsave_description,
+                        ((Result.Success<Building>) resolution).getValue().getName())
+                : context.getString(R.string.favourite_unsave_stale_description));
         unsaveIcon.setOnClickListener(v -> listener.onUnsaveTapped(buildingId));
 
         return view;

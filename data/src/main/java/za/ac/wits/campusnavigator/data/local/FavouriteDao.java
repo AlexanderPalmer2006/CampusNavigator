@@ -25,6 +25,11 @@ public interface FavouriteDao {
     @Query("SELECT EXISTS(SELECT 1 FROM FavouriteEntry WHERE building_id = :buildingId)")
     boolean exists(long buildingId);
 
-    @Query("SELECT building_id FROM FavouriteEntry")
+    // Code review fix (2026-07-13): without an explicit ORDER BY, SQLite gives no
+    // ordering guarantee -- the exact nondeterminism BuildingDao.getBuildingsByCategory/
+    // getCommonPickCategories were fixed for in Story 4.2's own review. Ordered by
+    // building_id (insertion order has no durable meaning once a row can be deleted and
+    // re-added) so the Favourites list order is stable across loads.
+    @Query("SELECT building_id FROM FavouriteEntry ORDER BY building_id")
     List<Long> getAllBuildingIds();
 }

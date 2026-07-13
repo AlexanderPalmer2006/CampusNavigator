@@ -23,11 +23,22 @@ import za.ac.wits.campusnavigator.domain.usecase.SaveFavouriteUseCase;
  * <p>Story 5.1: {@code isFavourite} is loaded in the same background task as {@code
  * details} (one unit of loaded content for this page, same reasoning Story 4.2's
  * CommonPicksViewModel used for its own two-source load) and degrades to {@code false} on
- * failure -- the Save button simply offers to save again rather than crashing or hiding.
- * {@link #toggleFavourite()} needs no rapid-double-tap guard: both underlying writes
- * (insert-with-IGNORE / delete-where) are idempotent, matching this project's established
- * risk tolerance for this class of gesture (Story 4.1's tile tap, Story 2.2's Start
- * Navigation button).</p>
+ * failure -- the Save button simply offers to save again rather than crashing or hiding.</p>
+ *
+ * <p>Code review fix (2026-07-13): {@link #toggleFavourite()} originally relied on
+ * write-idempotency alone (insert-with-IGNORE / delete-where) to argue no rapid-double-tap
+ * guard was needed -- but idempotency only prevents a duplicate *row*, it does not prevent
+ * a duplicate *decision*. The original implementation read {@code isFavourite.getValue()}
+ * synchronously to decide the next state, then posted the flipped value only after the
+ * background write completed; two taps issued before that post lands both read the same
+ * stale value and both enqueue the *same* operation (save, save) instead of alternating
+ * (save, then remove) -- a real "second tap silently fails to undo the first" bug, not the
+ * harmless re-execution Story 4.1's tile tap / Story 2.2's Start Navigation button precedent
+ * describes. Fixed by flipping {@code isFavourite} synchronously (main thread, immediately)
+ * before the background write, the same optimistic-update shape
+ * {@code SettingsViewModel#setAccessibilityPreference} already established for the
+ * Accessibility Preference switch -- the next tap now always reads the post-tap value, not
+ * a stale pre-write one.</p>
  */
 public final class BuildingInfoViewModel extends ViewModel {
 
@@ -74,17 +85,22 @@ public final class BuildingInfoViewModel extends ViewModel {
         return isFavourite;
     }
 
-    /** Toggles Favourite state for this Building, persists it, and updates the LiveData. */
+    /**
+     * Toggles Favourite state for this Building, persists it, and updates the LiveData.
+     * Always called from the main thread (the button's click listener), so the optimistic
+     * {@code setValue} below is safe -- it makes the flipped state visible to the *next*
+     * tap immediately, closing the rapid-double-tap race described above.
+     */
     public void toggleFavourite() {
         boolean currentlyFavourite = Boolean.TRUE.equals(isFavourite.getValue());
         boolean nextFavourite = !currentlyFavourite;
+        isFavourite.setValue(nextFavourite);
         executorService.execute(() -> {
             if (nextFavourite) {
                 saveFavouriteUseCase.execute(buildingId);
             } else {
                 removeFavouriteUseCase.execute(buildingId);
             }
-            isFavourite.postValue(nextFavourite);
         });
     }
 

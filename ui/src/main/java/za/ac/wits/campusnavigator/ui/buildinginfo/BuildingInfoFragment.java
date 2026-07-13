@@ -151,8 +151,13 @@ public final class BuildingInfoFragment extends Fragment {
         viewModel.getIsFavourite().observe(getViewLifecycleOwner(), isFavourite -> {
             boolean favourite = Boolean.TRUE.equals(isFavourite);
             favouriteButton.setText(favourite ? R.string.favourite_button_saved : R.string.favourite_button_save);
-            favouriteButton.setContentDescription(
-                    getString(favourite ? R.string.favourite_button_saved : R.string.favourite_button_save));
+            // Code review fix (2026-07-13): a distinct, glyph-free content description --
+            // the visual text ("☆ Save"/"★ Saved") carries a decorative unicode star that
+            // has no place in a spoken TalkBack label (favourite_unsave_description /
+            // favourite_row_description already established plain-text-only as this
+            // story's own convention for spoken labels; this button was the one gap).
+            favouriteButton.setContentDescription(getString(
+                    favourite ? R.string.favourite_button_saved_description : R.string.favourite_button_save_description));
         });
     }
 

@@ -30,10 +30,24 @@
     <string name="common_pick_category_no_match">No %1$s found nearby</string>
     <string name="favourite_button_save">☆ Save</string>
     <string name="favourite_button_saved">★ Saved</string>
+    <!-- Code review fix (2026-07-13): TalkBack content descriptions for favouriteButton,
+         distinct from its visual text: the visual label carries a decorative unicode
+         glyph (☆/★) that every other new label in this story deliberately omits from its
+         spoken form (favourite_unsave_description, favourite_row_description are plain
+         text). Reusing the glyph-bearing string verbatim as the content description was
+         the original gap; these two strings are the fix. -->
+    <string name="favourite_button_save_description">Save this Building as a Favourite</string>
+    <string name="favourite_button_saved_description">Saved as a Favourite. Tap to remove.</string>
     <string name="favourites_title">Favourites</string>
     <string name="favourite_empty_state">Save a Building from its info page to see it here</string>
     <string name="favourite_stale_building">This place is no longer available</string>
     <string name="favourite_row_description">%1$s</string>
     <string name="favourite_unsave_description">Remove %1$s from Favourites</string>
+    <!-- Code review fix (2026-07-13): distinct phrasing for a stale row's unsave icon:
+         the original implementation substituted favourite_stale_building's full sentence
+         directly into favourite_unsave_description's %1$s placeholder, producing the
+         grammatically broken "Remove This place is no longer available from Favourites"
+         when read aloud by TalkBack. -->
+    <string name="favourite_unsave_stale_description">Remove this no-longer-available place from Favourites</string>
     <string name="favourite_unsave_icon">★</string>
 </resources>
