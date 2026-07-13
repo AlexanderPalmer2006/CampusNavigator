@@ -14,12 +14,14 @@ import za.ac.wits.campusnavigator.domain.usecase.GetAccessibilityPreferenceUseCa
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetCommonPickCategoriesUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.GetDarkModePreferenceUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetFavouritesUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetLandmarkPicksUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.IsFavouriteUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.RemoveFavouriteUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.SaveFavouriteUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.SetAccessibilityPreferenceUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.SetDarkModePreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.buildinginfo.BuildingInfoFragment;
 import za.ac.wits.campusnavigator.ui.commonpicks.CommonPicksFragment;
 import za.ac.wits.campusnavigator.ui.favourites.FavouritesFragment;
@@ -31,6 +33,7 @@ import za.ac.wits.campusnavigator.ui.map.HasGetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetCommonPickCategoriesUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasGetDarkModePreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetFavouritesUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetLandmarkPicksUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasIsFavouriteUseCase;
@@ -39,6 +42,7 @@ import za.ac.wits.campusnavigator.ui.map.HasRemoveFavouriteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasSaveFavouriteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasSearchBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasSetAccessibilityPreferenceUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasSetDarkModePreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.MapFragment;
 import za.ac.wits.campusnavigator.ui.settings.SettingsFragment;
 
@@ -55,7 +59,8 @@ public final class MainActivity extends AppCompatActivity
         HasGetAccessibilityPreferenceUseCase, HasSetAccessibilityPreferenceUseCase,
         HasGetLandmarkPicksUseCase, HasBottomNavigation, HasGetCommonPickCategoriesUseCase,
         HasFindNearestCategoryPickUseCase, HasGetFavouritesUseCase, HasIsFavouriteUseCase,
-        HasSaveFavouriteUseCase, HasRemoveFavouriteUseCase {
+        HasSaveFavouriteUseCase, HasRemoveFavouriteUseCase, HasGetDarkModePreferenceUseCase,
+        HasSetDarkModePreferenceUseCase {
 
     private BottomNavigationView bottomNavView;
 
@@ -198,6 +203,16 @@ public final class MainActivity extends AppCompatActivity
     @Override
     public RemoveFavouriteUseCase getRemoveFavouriteUseCase() {
         return ((CampusNavigatorApplication) getApplication()).getRemoveFavouriteUseCase();
+    }
+
+    @Override
+    public GetDarkModePreferenceUseCase getGetDarkModePreferenceUseCase() {
+        return ((CampusNavigatorApplication) getApplication()).getGetDarkModePreferenceUseCase();
+    }
+
+    @Override
+    public SetDarkModePreferenceUseCase getSetDarkModePreferenceUseCase() {
+        return ((CampusNavigatorApplication) getApplication()).getSetDarkModePreferenceUseCase();
     }
 
     @Override

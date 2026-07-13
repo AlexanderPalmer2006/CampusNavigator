@@ -4,6 +4,7 @@ package za.ac.wits.campusnavigator.domain.repository;
 public final class FakeSettingsRepository implements SettingsRepository {
 
     private boolean accessibilityPreferenceEnabled;
+    private boolean darkModeEnabled;
 
     public FakeSettingsRepository() {
         this(false);
@@ -21,5 +22,15 @@ public final class FakeSettingsRepository implements SettingsRepository {
     @Override
     public void setAccessibilityPreferenceEnabled(boolean enabled) {
         this.accessibilityPreferenceEnabled = enabled;
+    }
+
+    @Override
+    public boolean isDarkModeEnabled() {
+        return darkModeEnabled;
+    }
+
+    @Override
+    public void setDarkModeEnabled(boolean enabled) {
+        this.darkModeEnabled = enabled;
     }
 }

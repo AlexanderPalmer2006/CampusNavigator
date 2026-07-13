@@ -1,0 +1,14 @@
+{
+  "version": 8,
+  "name": "Campus Navigator Offline Base (Dark Mode)",
+  "sources": {},
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#1C1B1A"
+      }
+    }
+  ]
+}

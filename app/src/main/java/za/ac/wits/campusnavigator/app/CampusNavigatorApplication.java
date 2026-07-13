@@ -1,6 +1,11 @@
 package za.ac.wits.campusnavigator.app;
 
 import android.app.Application;
+import android.os.Handler;
+import android.os.Looper;
+import androidx.appcompat.app.AppCompatDelegate;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import za.ac.wits.campusnavigator.data.local.CampusDatabase;
 import za.ac.wits.campusnavigator.data.local.UserDatabase;
 import za.ac.wits.campusnavigator.data.repository.BuildingRepositoryImpl;
@@ -19,12 +24,14 @@ import za.ac.wits.campusnavigator.domain.usecase.GetAccessibilityPreferenceUseCa
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetCommonPickCategoriesUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.GetDarkModePreferenceUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetFavouritesUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetLandmarkPicksUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.IsFavouriteUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.RemoveFavouriteUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.SaveFavouriteUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.SetAccessibilityPreferenceUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.SetDarkModePreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.location.AndroidLocationProvider;
 import za.ac.wits.campusnavigator.ui.map.HasComputeRouteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasFindNearestCategoryPickUseCase;
@@ -32,6 +39,7 @@ import za.ac.wits.campusnavigator.ui.map.HasGetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetCommonPickCategoriesUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasGetDarkModePreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetFavouritesUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetLandmarkPicksUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasIsFavouriteUseCase;
@@ -40,6 +48,7 @@ import za.ac.wits.campusnavigator.ui.map.HasRemoveFavouriteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasSaveFavouriteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasSearchBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasSetAccessibilityPreferenceUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasSetDarkModePreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.MapLibreInitializer;
 
 /**
@@ -52,7 +61,7 @@ public final class CampusNavigatorApplication extends Application
         HasGetBuildingDetailsUseCase, HasComputeRouteUseCase, HasGetAccessibilityPreferenceUseCase,
         HasSetAccessibilityPreferenceUseCase, HasGetLandmarkPicksUseCase, HasGetCommonPickCategoriesUseCase,
         HasFindNearestCategoryPickUseCase, HasGetFavouritesUseCase, HasIsFavouriteUseCase, HasSaveFavouriteUseCase,
-        HasRemoveFavouriteUseCase {
+        HasRemoveFavouriteUseCase, HasGetDarkModePreferenceUseCase, HasSetDarkModePreferenceUseCase {
 
     private GetBuildingsUseCase getBuildingsUseCase;
     private SearchBuildingsUseCase searchBuildingsUseCase;
@@ -67,6 +76,8 @@ public final class CampusNavigatorApplication extends Application
     private IsFavouriteUseCase isFavouriteUseCase;
     private SaveFavouriteUseCase saveFavouriteUseCase;
     private RemoveFavouriteUseCase removeFavouriteUseCase;
+    private GetDarkModePreferenceUseCase getDarkModePreferenceUseCase;
+    private SetDarkModePreferenceUseCase setDarkModePreferenceUseCase;
     private LocationProvider locationProvider;
 
     @Override
@@ -95,6 +106,8 @@ public final class CampusNavigatorApplication extends Application
         SettingsRepository settingsRepository = new SettingsRepositoryImpl(userDatabase.settingDao());
         getAccessibilityPreferenceUseCase = new GetAccessibilityPreferenceUseCase(settingsRepository);
         setAccessibilityPreferenceUseCase = new SetAccessibilityPreferenceUseCase(settingsRepository);
+        getDarkModePreferenceUseCase = new GetDarkModePreferenceUseCase(settingsRepository);
+        setDarkModePreferenceUseCase = new SetDarkModePreferenceUseCase(settingsRepository);
 
         FavouritesRepository favouritesRepository = new FavouritesRepositoryImpl(userDatabase.favouriteDao());
         getFavouritesUseCase = new GetFavouritesUseCase(favouritesRepository, buildingRepository);
@@ -104,6 +117,39 @@ public final class CampusNavigatorApplication extends Application
 
         // Exactly one instance, shared -- never re-instantiated per feature (AD-11).
         locationProvider = new AndroidLocationProvider(this);
+
+        applyPersistedDarkModePreference();
+    }
+
+    /**
+     * Story 5.2: applies the persisted Dark Mode preference as early as possible, before
+     * MainActivity's theme resolves, to avoid a wrong-then-recreate flash on cold start.
+     * The read is a Room query, so it stays off the main thread (this project's
+     * ExecutorService/never-main-thread convention is non-negotiable, no
+     * allowMainThreadQueries() shortcut) -- a short-lived, one-shot executor submits the
+     * single read, then shuts down immediately (the queued task still runs to completion;
+     * this class has no ViewModel#onCleared() equivalent, and the process-lifetime
+     * Application singleton doesn't need one). AppCompatDelegate.setDefaultNightMode()
+     * itself is applied back on the main thread via Handler -- there is no LiveData here to
+     * postValue into, this is a plain Application class, not a ViewModel.
+     *
+     * <p>Accepted trade-off (see the story's own Dev Notes "Resolved Design"): because this
+     * read is asynchronous, MainActivity's own onCreate()/theme resolution can rarely
+     * happen before it resolves, showing one frame in the wrong mode before
+     * AppCompatDelegate applies the persisted mode and recreates the Activity. In the
+     * overwhelmingly common case (a single-row key lookup against an already-open, tiny
+     * SQLite file) this resolves in low-single-digit milliseconds, well before
+     * MainActivity's own onCreate(), so no visible flash occurs in practice.</p>
+     */
+    private void applyPersistedDarkModePreference() {
+        ExecutorService darkModeExecutor = Executors.newSingleThreadExecutor();
+        Handler mainThreadHandler = new Handler(Looper.getMainLooper());
+        darkModeExecutor.execute(() -> {
+            boolean darkModeEnabled = getDarkModePreferenceUseCase.execute();
+            mainThreadHandler.post(() -> AppCompatDelegate.setDefaultNightMode(
+                    darkModeEnabled ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO));
+        });
+        darkModeExecutor.shutdown();
     }
 
     @Override
@@ -174,5 +220,15 @@ public final class CampusNavigatorApplication extends Application
     @Override
     public RemoveFavouriteUseCase getRemoveFavouriteUseCase() {
         return removeFavouriteUseCase;
+    }
+
+    @Override
+    public GetDarkModePreferenceUseCase getGetDarkModePreferenceUseCase() {
+        return getDarkModePreferenceUseCase;
+    }
+
+    @Override
+    public SetDarkModePreferenceUseCase getSetDarkModePreferenceUseCase() {
+        return setDarkModePreferenceUseCase;
     }
 }

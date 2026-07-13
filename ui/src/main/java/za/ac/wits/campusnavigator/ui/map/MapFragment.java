@@ -2,6 +2,7 @@ package za.ac.wits.campusnavigator.ui.map;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.PointF;
 import android.os.Bundle;
 import android.text.Editable;
@@ -203,7 +204,7 @@ public final class MapFragment extends Fragment {
             map = mapLibreMap;
             map.addOnCameraIdleListener(this::repositionLabels);
             map.addOnCameraMoveListener(this::repositionLabels);
-            map.setStyle(new Style.Builder().fromUri("asset://style.json"), style -> {
+            map.setStyle(new Style.Builder().fromUri(currentMapStyleUri()), style -> {
                 if (getView() == null) {
                     return;
                 }
@@ -212,6 +213,28 @@ public final class MapFragment extends Fragment {
                 navigationViewModel.getActiveRoute().observe(getViewLifecycleOwner(), this::renderRoute);
             });
         });
+    }
+
+    /**
+     * Story 5.2: the offline base style's background layer is a MapLibre-rendered
+     * canvas, not an Android {@code View} -- it does not participate in
+     * {@code Theme.Material3.DayNight}'s resource-qualifier resolution the rest of this
+     * app's UI gets "for free." Without this, toggling Dark Mode would leave the Map
+     * tab's background hardcoded light (`style.json`'s `#FAFAF8`) while every other
+     * screen goes dark, violating AC 2 ("...across every screen") on the single most
+     * visible surface in the app. Reads the currently *resolved* night mode from
+     * {@code Configuration} (the same source {@code values-night/} resource qualifiers
+     * themselves resolve against) rather than re-reading the persisted Setting directly --
+     * this Fragment is always freshly recreated after a Dark Mode toggle (that toggle
+     * calls {@code AppCompatDelegate.setDefaultNightMode()}, which recreates the hosting
+     * Activity), so the current Configuration is already authoritative at the point this
+     * runs; no separate Room read or live-update path is needed here.
+     */
+    private String currentMapStyleUri() {
+        int nightModeFlags = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        return nightModeFlags == Configuration.UI_MODE_NIGHT_YES
+                ? "asset://style_dark.json"
+                : "asset://style.json";
     }
 
     private void setUpSearch(@NonNull View view) {

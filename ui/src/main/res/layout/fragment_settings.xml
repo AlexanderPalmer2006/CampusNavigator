@@ -6,6 +6,48 @@
     android:background="@color/surface_base"
     android:orientation="vertical">
 
+    <!-- Story 5.2: EXPERIENCE.md's own Settings row lists "Dark Mode toggle, Accessibility
+         Preference toggle" in that order: placed above accessibilityPreferenceRow to
+         match. Same row shape as accessibilityPreferenceRow below (DESIGN.md: Settings
+         rows are unrounded/hairline only, min 48dp tall, fully tappable). -->
+    <LinearLayout
+        android:id="@+id/darkModePreferenceRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?attr/selectableItemBackground"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp">
+
+        <TextView
+            android:id="@+id/darkModePreferenceLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/settings_dark_mode_label"
+            android:textColor="@color/ink_primary"
+            android:textSize="16sp" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/darkModePreferenceSwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
+            android:contentDescription="@string/settings_dark_mode_label" />
+
+    </LinearLayout>
+
+    <!-- Hairline divider (DESIGN.md: "Settings rows and list dividers are unrounded, hairline only"). -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/border_hairline" />
+
     <!-- DESIGN.md: Settings rows and list dividers are unrounded (hairline only), not
          {rounded.md} card styling like Building/Common-Pick cards. Row is min 48dp tall
          and fully tappable (label + switch), not just the switch thumb. -->

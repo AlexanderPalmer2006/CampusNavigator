@@ -20,6 +20,7 @@
     <string name="navigation_no_route_available">No route available right now.</string>
     <string name="navigation_route_description">Walking route to %1$s</string>
     <string name="settings_accessibility_preference_label">Always avoid stairs</string>
+    <string name="settings_dark_mode_label">Dark Mode</string>
     <string name="route_accessible_label">Accessible route</string>
     <string name="navigation_no_accessible_route">No accessible route found to this building.</string>
     <string name="common_picks_title">Common Picks</string>

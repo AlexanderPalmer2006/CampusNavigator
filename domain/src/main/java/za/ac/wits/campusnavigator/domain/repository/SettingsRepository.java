@@ -12,4 +12,13 @@ public interface SettingsRepository {
     boolean isAccessibilityPreferenceEnabled();
 
     void setAccessibilityPreferenceEnabled(boolean enabled);
+
+    /**
+     * Defaults to {@code false} (light mode, forced) when no preference has ever been
+     * saved -- EXPERIENCE.md: "Light Mode is the default surface... not default-on"
+     * (Story 5.2).
+     */
+    boolean isDarkModeEnabled();
+
+    void setDarkModeEnabled(boolean enabled);
 }
