@@ -28,10 +28,19 @@ android {
     // via a real on-device run: building labels rendered, but no road lines or terrain fills
     // ever appeared, with nothing in logcat pointing at the cause). This is a standard,
     // widely-documented Android/MapLibre gotcha for any bundled binary tile asset, not
-    // specific to this app's own code. `campus.db` and `style*.json` are unaffected --
-    // `.db` is already on Android's own default no-compress extension list, and the two
-    // small `style*.json` files are loaded by MapLibre through its ordinary (non-mmap)
-    // asset-streaming path, not the tile-mmap path.
+    // specific to this app's own code.
+    //
+    // Code review correction (2026-07-13): `campus.db` and `style*.json` are unaffected,
+    // but NOT because `.db` sits on some Android/AGP no-compress list -- it doesn't; a real
+    // built APK inspected via `unzip -v` shows `assets/database/campus.db` itself as
+    // `Defl:N`, 82% compressed, same as `style*.json`. The real reason those two asset
+    // types are unaffected by this bug class is that neither is read via the mmap/raw-fd
+    // path at all: `CampusDatabase`'s `Room.createFromAsset("database/campus.db")` copies
+    // the asset out via `AssetManager`'s ordinary streaming `InputStream` (which
+    // transparently decompresses on read, same as any normal asset read), and MapLibre
+    // itself loads `style*.json` through its ordinary style-parsing path, not the
+    // tile-source mmap path. Only `.pbf` tiles, read through MapLibre's zero-copy tile
+    // loader specifically, need `noCompress` here.
     androidResources {
         noCompress "pbf"
     }

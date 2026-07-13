@@ -6,7 +6,8 @@
       "type": "vector",
       "tiles": ["asset://tiles/{z}/{x}/{y}.pbf"],
       "minzoom": 14,
-      "maxzoom": 18
+      "maxzoom": 18,
+      "bounds": [28.0195, -26.1945, 28.0338, -26.1835]
     }
   },
   "layers": [
@@ -40,13 +41,17 @@
       "type": "line",
       "source": "campus-tiles",
       "source-layer": "roads",
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
       "paint": {
         "line-color": [
           "match",
           ["get", "class"],
           ["footway", "path", "steps", "cycleway"],
           "#6E6558",
-          "#8A8067"
+          "#5C574B"
         ],
         "line-width": [
           "match",

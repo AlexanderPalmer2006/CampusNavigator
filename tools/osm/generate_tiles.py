@@ -28,6 +28,20 @@ not planet-scale).
   etc.) as color-differentiable ground cover, distinct from Story 6.3's later
   Building-scoped footprint fills.
 
+Code review note (Story 6.2, 2026-07-13): `ui/src/main/assets/style.json` and
+`style_dark.json` style these two layers via MapLibre `"match"` expressions keyed on
+`roads`' `class` property and `landcover`'s `kind` property, with explicit value buckets
+(e.g. `class` in `["footway","path","steps","cycleway"]` vs everything else; `kind` in
+`["grass","pitch","sports_centre","golf_course","garden","recreation_ground","cemetery"]`
+vs `"water"` vs everything else) hand-copied from the actual value set present in
+`raw/wits_terrain.json` at the time Story 6.2 was written. JSON has no comment syntax, so
+that provenance isn't recorded in the style files themselves -- recorded here instead. If
+this script is ever re-run against a refreshed OSM extract, a new `highway`/`landuse`/
+`natural`/`leisure` value not in those buckets will silently fall through to each match
+expression's default color rather than erroring -- harmless (still renders, just an
+un-differentiated color) but worth a manual `style.json` diff-check against this script's
+own printed `roads`/`landcover` feature counts after any future re-run.
+
 Zoom range 14-18 (bracketing `MapFragment.DEFAULT_ZOOM = 16`). MapLibre's standard
 vector-tile pipeline over/under-zooms the nearest available tile outside this range, so
 panning/zooming past it degrades resolution rather than breaking (standard MVT client
