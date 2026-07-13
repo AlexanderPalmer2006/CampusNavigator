@@ -1,5 +1,7 @@
 package za.ac.wits.campusnavigator.ui.settings;
 
+import android.os.Handler;
+import android.os.Looper;
 import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -62,10 +64,29 @@ public final class SettingsViewModel extends ViewModel {
      * race Story 5.1's code review found and fixed in
      * {@code BuildingInfoViewModel.toggleFavourite()}: without it, two rapid taps could
      * both read the same stale pre-write LiveData value.
+     *
+     * <p>Code review fix (2026-07-13): unlike {@link #setAccessibilityPreference(boolean)},
+     * this write must complete <em>before</em> the caller applies
+     * {@code AppCompatDelegate.setDefaultNightMode()} -- that call recreates the Activity,
+     * which destroys this ViewModel and constructs a brand-new one with its own,
+     * independent {@code ExecutorService}. Without ordering the write ahead of the
+     * recreate, the new ViewModel's own construction-time read could race the still-queued
+     * write on the *old* ViewModel's executor (two unrelated background threads, no shared
+     * ordering) and read back the stale pre-toggle value -- the app's theme would still be
+     * correct (driven directly by {@code AppCompatDelegate}, not re-derived from Room), but
+     * the recreated Settings screen's switch could display the wrong state, potentially
+     * until the user leaves and revisits the tab. {@code onPersisted} is posted to the main
+     * thread only after the write actually completes, so the caller can safely defer the
+     * mode-changing (and therefore recreate-triggering) call until then -- fully
+     * asynchronous, no main-thread blocking.</p>
      */
-    public void setDarkModePreference(boolean enabled) {
+    public void setDarkModePreference(boolean enabled, @NonNull Runnable onPersisted) {
         darkModePreference.setValue(enabled);
-        executorService.execute(() -> setDarkModePreferenceUseCase.execute(enabled));
+        Handler mainThreadHandler = new Handler(Looper.getMainLooper());
+        executorService.execute(() -> {
+            setDarkModePreferenceUseCase.execute(enabled);
+            mainThreadHandler.post(onPersisted);
+        });
     }
 
     @Override

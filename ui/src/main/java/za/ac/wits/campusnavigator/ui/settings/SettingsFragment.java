@@ -75,13 +75,20 @@ public final class SettingsFragment extends Fragment {
             darkModeSwitchView.setOnCheckedChangeListener(null);
             darkModeSwitchView.setChecked(Boolean.TRUE.equals(enabled));
             darkModeSwitchView.setOnCheckedChangeListener((button, isChecked) -> {
-                settingsViewModel.setDarkModePreference(isChecked);
-                // Dark Mode is a pure theme switch, unlike the accessibility preference --
-                // no NavigationViewModel/route-recompute interaction (Story 5.2 Dev
-                // Notes). Applying this triggers a standard AppCompatActivity recreate to
-                // pick up the new theme resources (AC 1: "switches immediately").
-                AppCompatDelegate.setDefaultNightMode(
-                        isChecked ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
+                // Code review fix (2026-07-13): setDefaultNightMode() (below) recreates
+                // the Activity, which destroys this Fragment/ViewModel -- deferring it
+                // until the write actually lands (via onPersisted) avoids a race against
+                // the recreated screen's brand-new ViewModel reading back the pre-toggle
+                // value on its own, unrelated executor (SettingsViewModel's own Javadoc).
+                settingsViewModel.setDarkModePreference(isChecked, () -> {
+                    // Dark Mode is a pure theme switch, unlike the accessibility
+                    // preference -- no NavigationViewModel/route-recompute interaction
+                    // (Story 5.2 Dev Notes). Applying this triggers a standard
+                    // AppCompatActivity recreate to pick up the new theme resources
+                    // (AC 1: "switches immediately").
+                    AppCompatDelegate.setDefaultNightMode(
+                            isChecked ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
+                });
             });
         });
 

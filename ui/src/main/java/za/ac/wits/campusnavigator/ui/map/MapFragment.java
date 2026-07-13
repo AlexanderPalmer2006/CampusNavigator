@@ -232,6 +232,11 @@ public final class MapFragment extends Fragment {
      */
     private String currentMapStyleUri() {
         int nightModeFlags = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        // Anything other than the explicit YES flag (including UI_MODE_NIGHT_UNDEFINED,
+        // on devices/OS versions that never populate it) falls through to the light
+        // style -- intentional, not a side effect of the ternary: light is this app's
+        // own explicit default (EXPERIENCE.md: "not default-on"), so an unresolved/
+        // undefined signal should never be treated as an implicit request for dark.
         return nightModeFlags == Configuration.UI_MODE_NIGHT_YES
                 ? "asset://style_dark.json"
                 : "asset://style.json";
