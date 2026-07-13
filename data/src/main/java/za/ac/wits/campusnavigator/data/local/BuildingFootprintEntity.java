@@ -23,7 +23,12 @@ import androidx.room.PrimaryKey;
 @Entity(tableName = "BuildingFootprint")
 public class BuildingFootprintEntity {
 
-    @PrimaryKey
+    // autoGenerate: today's 3 seeded rows happen to set id == building_id (a 1:1
+    // convention that only holds while every seeded Building has exactly one ring). A
+    // future second ring for the same Building -- the exact multi-polygon case this
+    // schema exists to support -- would collide on a hand-typed id under that same
+    // convention; autoGenerate removes the need for a future seed author to invent one.
+    @PrimaryKey(autoGenerate = true)
     public long id;
 
     @ColumnInfo(name = "building_id")

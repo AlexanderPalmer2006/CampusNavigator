@@ -32,7 +32,7 @@ final class BuildingFillView extends View {
 
     private final Paint fillPaint;
     private final Paint strokePaint;
-    private List<List<PointF>> polygons = Collections.emptyList();
+    private List<List<List<PointF>>> buildingPolygons = Collections.emptyList();
 
     BuildingFillView(Context context, int fillColor, int strokeColor) {
         super(context);
@@ -56,31 +56,45 @@ final class BuildingFillView extends View {
         setClickable(false);
     }
 
-    /** Screen-space polygons (one list of points per ring), already projected via the map's current camera. */
-    void setPolygons(List<List<PointF>> newPolygons) {
-        this.polygons = newPolygons;
+    /**
+     * Screen-space polygons, grouped by Building: one outer entry per Building with at
+     * least one surviving ring, each holding that Building's own list of rings (already
+     * projected via the map's current camera). Grouped so a multi-ring Building (an
+     * L-shaped block, a courtyard) draws as one unified shape via a single {@link Path}'s
+     * multiple sub-paths -- drawing each ring with its own separate {@code drawPath} call
+     * would double-alpha-blend the translucent fill along any edge two of that Building's
+     * own rings share or touch, and add a spurious stroke line down the seam.
+     */
+    void setPolygons(List<List<List<PointF>>> newBuildingPolygons) {
+        this.buildingPolygons = newBuildingPolygons;
         invalidate();
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        for (List<PointF> ring : polygons) {
-            if (ring.size() < 3) {
-                // Not a real polygon (a degenerate/collapsed ring) -- skip rather than draw
-                // a meaningless sliver.
-                continue;
-            }
+        for (List<List<PointF>> rings : buildingPolygons) {
             Path path = new Path();
-            PointF first = ring.get(0);
-            path.moveTo(first.x, first.y);
-            for (int i = 1; i < ring.size(); i++) {
-                PointF point = ring.get(i);
-                path.lineTo(point.x, point.y);
+            boolean hasValidRing = false;
+            for (List<PointF> ring : rings) {
+                if (ring.size() < 3) {
+                    // Not a real polygon (a degenerate/collapsed ring) -- skip rather than
+                    // draw a meaningless sliver.
+                    continue;
+                }
+                hasValidRing = true;
+                PointF first = ring.get(0);
+                path.moveTo(first.x, first.y);
+                for (int i = 1; i < ring.size(); i++) {
+                    PointF point = ring.get(i);
+                    path.lineTo(point.x, point.y);
+                }
+                path.close();
             }
-            path.close();
-            canvas.drawPath(path, fillPaint);
-            canvas.drawPath(path, strokePaint);
+            if (hasValidRing) {
+                canvas.drawPath(path, fillPaint);
+                canvas.drawPath(path, strokePaint);
+            }
         }
     }
 

@@ -132,8 +132,22 @@ public final class BuildingRepositoryImpl implements BuildingRepository {
      * simple, flat, author-controlled data, not a general-purpose parsing need.
      */
     private static List<Position> parseRing(String ringGeoJson) {
+        if (ringGeoJson == null) {
+            // Room's schema has no NOT NULL constraint on ring_geojson. org.json's
+            // JSONArray(String) constructor does not throw JSONException for a null
+            // argument -- it throws NullPointerException deeper inside (JSONTokener),
+            // which the catch below does not cover -- so this must be rejected here,
+            // explicitly, rather than relying on the exception handler beneath it.
+            return null;
+        }
         try {
             JSONArray points = new JSONArray(ringGeoJson);
+            if (points.length() < 3) {
+                // Fewer than 3 vertices can never enclose an area -- reject here rather
+                // than silently carrying a degenerate ring three layers downstream to
+                // BuildingFillView's own defensive size check.
+                return null;
+            }
             List<Position> ring = new ArrayList<>(points.length());
             for (int i = 0; i < points.length(); i++) {
                 JSONArray point = points.getJSONArray(i);

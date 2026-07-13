@@ -554,8 +554,12 @@ public final class MapFragment extends Fragment {
                 (float) visible.getLonWest(), (float) visible.getLatSouth(),
                 (float) visible.getLonEast(), (float) visible.getLatNorth());
 
-        List<List<PointF>> screenPolygons = new ArrayList<>();
+        // Grouped per Building (not flattened across Buildings) so BuildingFillView can
+        // draw each Building's rings as one unified Path -- see its setPolygons() Javadoc
+        // for why flattening caused a real multi-ring rendering defect (Review Findings).
+        List<List<List<PointF>>> buildingPolygons = new ArrayList<>();
         for (BuildingFootprint footprint : currentFootprints) {
+            List<List<PointF>> screenRings = new ArrayList<>();
             for (List<Position> ring : footprint.getRings()) {
                 if (ring.isEmpty()) {
                     continue;
@@ -569,10 +573,13 @@ public final class MapFragment extends Fragment {
                     screenRing.add(map.getProjection().toScreenLocation(
                             new LatLng(vertex.getLatitude(), vertex.getLongitude())));
                 }
-                screenPolygons.add(screenRing);
+                screenRings.add(screenRing);
+            }
+            if (!screenRings.isEmpty()) {
+                buildingPolygons.add(screenRings);
             }
         }
-        buildingFillView.setPolygons(screenPolygons);
+        buildingFillView.setPolygons(buildingPolygons);
     }
 
     private static RectF ringLatLngBounds(List<Position> ring) {
