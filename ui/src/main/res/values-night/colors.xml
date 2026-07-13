@@ -10,4 +10,8 @@
 
     <!-- Same interim-pending-audit caveat as the light variant. -->
     <color name="accent">#D98C5F</color>
+
+    <!-- Story 6.3 (AC 4): same reasoning as the light variant. #598A6F52 = 8A6F52 at 35% alpha. -->
+    <color name="building_fill">#598A6F52</color>
+    <color name="building_fill_stroke">#6B5540</color>
 </resources>

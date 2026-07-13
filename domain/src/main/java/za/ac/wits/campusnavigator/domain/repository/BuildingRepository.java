@@ -3,6 +3,7 @@ package za.ac.wits.campusnavigator.domain.repository;
 import java.util.List;
 import za.ac.wits.campusnavigator.domain.model.Building;
 import za.ac.wits.campusnavigator.domain.model.BuildingDetails;
+import za.ac.wits.campusnavigator.domain.model.BuildingFootprint;
 import za.ac.wits.campusnavigator.domain.model.CategoryTag;
 
 /**
@@ -58,4 +59,13 @@ public interface BuildingRepository {
      * null-on-missing convention as {@link #getBuildingDetails(long)}.
      */
     Building getBuildingById(long buildingId);
+
+    /**
+     * Returns every {@link BuildingFootprint} with seeded polygon data (Story 6.3) -- never
+     * null, an empty list means no Building has a seeded footprint yet. A Building with no
+     * footprint simply has no corresponding entry here (same "omit entirely, no
+     * placeholder" precedent as {@code BuildingPhoto}'s absence, AC 3). Same "empty list is
+     * a valid state, real I/O failure throws" convention as {@link #getAllBuildings()}.
+     */
+    List<BuildingFootprint> getAllBuildingFootprints();
 }

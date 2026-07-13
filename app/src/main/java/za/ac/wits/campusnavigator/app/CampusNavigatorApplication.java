@@ -22,6 +22,7 @@ import za.ac.wits.campusnavigator.domain.usecase.ComputeRouteUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.FindNearestCategoryPickUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingDetailsUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.GetBuildingFootprintsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetCommonPickCategoriesUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetDarkModePreferenceUseCase;
@@ -37,6 +38,7 @@ import za.ac.wits.campusnavigator.ui.map.HasComputeRouteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasFindNearestCategoryPickUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasGetBuildingFootprintsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetCommonPickCategoriesUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetDarkModePreferenceUseCase;
@@ -61,11 +63,13 @@ public final class CampusNavigatorApplication extends Application
         HasGetBuildingDetailsUseCase, HasComputeRouteUseCase, HasGetAccessibilityPreferenceUseCase,
         HasSetAccessibilityPreferenceUseCase, HasGetLandmarkPicksUseCase, HasGetCommonPickCategoriesUseCase,
         HasFindNearestCategoryPickUseCase, HasGetFavouritesUseCase, HasIsFavouriteUseCase, HasSaveFavouriteUseCase,
-        HasRemoveFavouriteUseCase, HasGetDarkModePreferenceUseCase, HasSetDarkModePreferenceUseCase {
+        HasRemoveFavouriteUseCase, HasGetDarkModePreferenceUseCase, HasSetDarkModePreferenceUseCase,
+        HasGetBuildingFootprintsUseCase {
 
     private GetBuildingsUseCase getBuildingsUseCase;
     private SearchBuildingsUseCase searchBuildingsUseCase;
     private GetBuildingDetailsUseCase getBuildingDetailsUseCase;
+    private GetBuildingFootprintsUseCase getBuildingFootprintsUseCase;
     private ComputeRouteUseCase computeRouteUseCase;
     private GetAccessibilityPreferenceUseCase getAccessibilityPreferenceUseCase;
     private SetAccessibilityPreferenceUseCase setAccessibilityPreferenceUseCase;
@@ -89,12 +93,14 @@ public final class CampusNavigatorApplication extends Application
         MapLibreInitializer.initialize(this);
 
         CampusDatabase database = CampusDatabase.getInstance(this);
-        BuildingRepository buildingRepository = new BuildingRepositoryImpl(database.buildingDao());
+        BuildingRepository buildingRepository =
+                new BuildingRepositoryImpl(database.buildingDao(), database.buildingFootprintDao());
         getBuildingsUseCase = new GetBuildingsUseCase(buildingRepository);
         searchBuildingsUseCase = new SearchBuildingsUseCase(buildingRepository);
         getBuildingDetailsUseCase = new GetBuildingDetailsUseCase(buildingRepository);
         getLandmarkPicksUseCase = new GetLandmarkPicksUseCase(buildingRepository);
         getCommonPickCategoriesUseCase = new GetCommonPickCategoriesUseCase(buildingRepository);
+        getBuildingFootprintsUseCase = new GetBuildingFootprintsUseCase(buildingRepository);
 
         RoutingRepository routingRepository = new RoutingRepositoryImpl(database.routingDao());
         computeRouteUseCase = new ComputeRouteUseCase(routingRepository);
@@ -255,5 +261,10 @@ public final class CampusNavigatorApplication extends Application
     @Override
     public SetDarkModePreferenceUseCase getSetDarkModePreferenceUseCase() {
         return setDarkModePreferenceUseCase;
+    }
+
+    @Override
+    public GetBuildingFootprintsUseCase getGetBuildingFootprintsUseCase() {
+        return getBuildingFootprintsUseCase;
     }
 }

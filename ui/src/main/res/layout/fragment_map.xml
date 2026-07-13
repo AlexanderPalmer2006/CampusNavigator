@@ -8,6 +8,15 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Story 6.3: building footprint fills render here, BENEATH buildingLabelOverlay
+         (XML document order is paint order in a FrameLayout), so fills must render behind
+         building labels, the Walking Route, and the location marker (AC 2), the opposite
+         of buildingLabelOverlay's own single-tier "everything on top" assumption. -->
+    <FrameLayout
+        android:id="@+id/buildingFillOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
     <FrameLayout
         android:id="@+id/buildingLabelOverlay"
         android:layout_width="match_parent"

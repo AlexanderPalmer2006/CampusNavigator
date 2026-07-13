@@ -12,9 +12,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import za.ac.wits.campusnavigator.domain.location.LocationProvider;
 import za.ac.wits.campusnavigator.domain.model.Building;
+import za.ac.wits.campusnavigator.domain.model.BuildingFootprint;
 import za.ac.wits.campusnavigator.domain.model.Position;
 import za.ac.wits.campusnavigator.domain.search.BuildingSearchResult;
 import za.ac.wits.campusnavigator.domain.search.SearchBuildingsUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.GetBuildingFootprintsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingsUseCase;
 
 /**
@@ -32,6 +34,7 @@ public final class MapViewModel extends ViewModel implements LocationProvider.Li
     private static final String TAG = "MapViewModel";
 
     private final MutableLiveData<List<Building>> buildings = new MutableLiveData<>();
+    private final MutableLiveData<List<BuildingFootprint>> buildingFootprints = new MutableLiveData<>();
     private final MutableLiveData<LocationUiState> locationState = new MutableLiveData<>(LocationUiState.initial());
     private final MutableLiveData<List<BuildingSearchResult>> searchResults =
             new MutableLiveData<>(Collections.emptyList());
@@ -41,7 +44,8 @@ public final class MapViewModel extends ViewModel implements LocationProvider.Li
     private final AtomicInteger searchRequestSequence = new AtomicInteger();
 
     public MapViewModel(@NonNull GetBuildingsUseCase getBuildingsUseCase, @NonNull LocationProvider locationProvider,
-                         @NonNull SearchBuildingsUseCase searchBuildingsUseCase) {
+                         @NonNull SearchBuildingsUseCase searchBuildingsUseCase,
+                         @NonNull GetBuildingFootprintsUseCase getBuildingFootprintsUseCase) {
         this.locationProvider = locationProvider;
         this.searchBuildingsUseCase = searchBuildingsUseCase;
         locationProvider.addListener(this);
@@ -55,11 +59,26 @@ public final class MapViewModel extends ViewModel implements LocationProvider.Li
                 Log.e(TAG, "Failed to load buildings from the bundled database", e);
                 buildings.postValue(Collections.emptyList());
             }
+            try {
+                buildingFootprints.postValue(getBuildingFootprintsUseCase.execute());
+            } catch (RuntimeException e) {
+                // Same degrade-not-crash posture as buildings above -- AC 3's "no footprint
+                // data renders with no fill and no crash" extends naturally to "no
+                // footprint data AT ALL renders with no fills and no crash" for this
+                // already-established failure class (Story 2.1's corrupted-bundled-DB
+                // precedent).
+                Log.e(TAG, "Failed to load building footprints from the bundled database", e);
+                buildingFootprints.postValue(Collections.emptyList());
+            }
         });
     }
 
     public LiveData<List<Building>> getBuildings() {
         return buildings;
+    }
+
+    public LiveData<List<BuildingFootprint>> getBuildingFootprints() {
+        return buildingFootprints;
     }
 
     LiveData<LocationUiState> getLocationState() {

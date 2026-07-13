@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.PointF;
+import android.graphics.RectF;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -36,6 +37,7 @@ import org.maplibre.android.maps.MapLibreMap;
 import org.maplibre.android.maps.Style;
 import za.ac.wits.campusnavigator.domain.location.LocationProvider;
 import za.ac.wits.campusnavigator.domain.model.Building;
+import za.ac.wits.campusnavigator.domain.model.BuildingFootprint;
 import za.ac.wits.campusnavigator.domain.model.Position;
 import za.ac.wits.campusnavigator.domain.model.Route;
 import za.ac.wits.campusnavigator.domain.result.Result;
@@ -74,6 +76,7 @@ public final class MapFragment extends Fragment {
 
     private MapView mapView;
     private FrameLayout labelOverlay;
+    private FrameLayout fillOverlay;
     private MapLibreMap map;
     private boolean cameraPositioned;
     private final List<LabelView> labelViews = new ArrayList<>();
@@ -84,10 +87,12 @@ public final class MapFragment extends Fragment {
     private NavigationViewModel navigationViewModel;
     private LocationMarkerView locationMarkerView;
     private RouteLineView routeLineView;
+    private BuildingFillView buildingFillView;
     private TextView accessibleRouteLabelView;
     private LatLng lastMarkerPosition;
     private List<LatLng> currentRouteWaypoints = new ArrayList<>();
     private boolean currentRouteIsAccessible;
+    private List<BuildingFootprint> currentFootprints = new ArrayList<>();
     private Boolean lastAnnouncedDegraded;
     private Result.ErrorType lastRouteErrorType;
     private ActivityResultLauncher<String[]> locationPermissionLauncher;
@@ -140,10 +145,12 @@ public final class MapFragment extends Fragment {
         lastMarkerPosition = null;
         currentRouteWaypoints = new ArrayList<>();
         currentRouteIsAccessible = false;
+        currentFootprints = new ArrayList<>();
         lastAnnouncedDegraded = null;
         lastRouteErrorType = null;
 
         mapView = view.findViewById(R.id.mapView);
+        fillOverlay = view.findViewById(R.id.buildingFillOverlay);
         labelOverlay = view.findViewById(R.id.buildingLabelOverlay);
         mapView.onCreate(savedInstanceState);
         mapView.setContentDescription(getString(R.string.map_attribution));
@@ -155,11 +162,13 @@ public final class MapFragment extends Fragment {
         HasGetAccessibilityPreferenceUseCase accessibilityPreferenceProvider =
                 (HasGetAccessibilityPreferenceUseCase) requireActivity();
         HasFindNearestCategoryPickUseCase categoryPickProvider = (HasFindNearestCategoryPickUseCase) requireActivity();
+        HasGetBuildingFootprintsUseCase footprintsProvider = (HasGetBuildingFootprintsUseCase) requireActivity();
         buildingNavigator = (HasBuildingNavigation) requireActivity();
         locationProvider = locationProviderHost.getLocationProvider();
 
         MapViewModelFactory factory = new MapViewModelFactory(buildingsProvider.getGetBuildingsUseCase(),
-                locationProvider, searchProvider.getSearchBuildingsUseCase());
+                locationProvider, searchProvider.getSearchBuildingsUseCase(),
+                footprintsProvider.getGetBuildingFootprintsUseCase());
         viewModel = new ViewModelProvider(this, factory).get(MapViewModel.class);
 
         // Activity-scoped -- the same instance a route may already have been started on
@@ -170,6 +179,16 @@ public final class MapFragment extends Fragment {
                         accessibilityPreferenceProvider.getGetAccessibilityPreferenceUseCase(),
                         categoryPickProvider.getFindNearestCategoryPickUseCase());
         navigationViewModel = new ViewModelProvider(requireActivity(), navigationFactory).get(NavigationViewModel.class);
+
+        // Story 6.3: building footprint fills live in their own lower FrameLayout tier
+        // (fillOverlay, added to fragment_map.xml BENEATH labelOverlay) so they render
+        // behind building labels, the Walking Route, and the location marker (AC 2) --
+        // added once here, not re-added on every renderBuildingLabels() call the way
+        // labelOverlay's own children are, since fillOverlay is a separate FrameLayout
+        // that renderBuildingLabels()'s removeAllViews() never touches.
+        buildingFillView = createBuildingFillView();
+        fillOverlay.addView(buildingFillView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
         // Added before the location marker so the route line renders underneath it (and
         // underneath the building labels added in renderBuildingLabels) -- match_parent
@@ -209,6 +228,7 @@ public final class MapFragment extends Fragment {
                     return;
                 }
                 viewModel.getBuildings().observe(getViewLifecycleOwner(), this::renderBuildingLabels);
+                viewModel.getBuildingFootprints().observe(getViewLifecycleOwner(), this::renderBuildingFootprints);
                 viewModel.getLocationState().observe(getViewLifecycleOwner(), this::renderLocationState);
                 navigationViewModel.getActiveRoute().observe(getViewLifecycleOwner(), this::renderRoute);
             });
@@ -291,6 +311,13 @@ public final class MapFragment extends Fragment {
         int accentColor = getResources().getColor(R.color.accent, requireContext().getTheme());
         int outlineColor = getResources().getColor(R.color.surface_raised, requireContext().getTheme());
         return new RouteLineView(requireContext(), accentColor, outlineColor);
+    }
+
+    /** DESIGN.md building-fill component (Story 6.3, AC 4) -- see colors.xml for the WCAG-audited hex values. */
+    private BuildingFillView createBuildingFillView() {
+        int fillColor = getResources().getColor(R.color.building_fill, requireContext().getTheme());
+        int strokeColor = getResources().getColor(R.color.building_fill_stroke, requireContext().getTheme());
+        return new BuildingFillView(requireContext(), fillColor, strokeColor);
     }
 
     /**
@@ -376,6 +403,18 @@ public final class MapFragment extends Fragment {
             }
         }
         repositionLabels();
+    }
+
+    /**
+     * AC 3: a Building with no seeded footprint simply contributes nothing here -- there is
+     * no per-Building placeholder/fallback shape, the same "omit entirely" precedent
+     * {@code BuildingPhoto}'s absence already established (Story 2.1). An empty list (no
+     * footprints seeded at all, or a corrupted-DB degrade per {@code MapViewModel}) clears
+     * any existing fills rather than leaving stale ones from a prior view.
+     */
+    private void renderBuildingFootprints(@Nullable List<BuildingFootprint> footprints) {
+        currentFootprints = footprints == null ? new ArrayList<>() : footprints;
+        repositionBuildingFills();
     }
 
     private void renderLocationState(@Nullable LocationUiState state) {
@@ -495,6 +534,62 @@ public final class MapFragment extends Fragment {
         }
         repositionLocationMarker();
         repositionRouteLine();
+        repositionBuildingFills();
+    }
+
+    /**
+     * Re-projects every seeded footprint ring to screen space on every camera move/idle
+     * (Story 6.3, AC 1/AC 2). Viewport-culls each ring against the map's current visible
+     * lat/lng bounds first (epic-6-scoping-2026-07-12.md §3's named cardinality concern)
+     * rather than reprojecting-then-discarding off-screen geometry every frame -- cheap at
+     * today's real scale (3 polygons) but the correct-by-construction answer regardless of
+     * how many footprints a future data update seeds.
+     */
+    private void repositionBuildingFills() {
+        if (map == null || buildingFillView == null) {
+            return;
+        }
+        LatLngBounds visible = map.getProjection().getVisibleRegion().latLngBounds;
+        RectF visibleBounds = new RectF(
+                (float) visible.getLonWest(), (float) visible.getLatSouth(),
+                (float) visible.getLonEast(), (float) visible.getLatNorth());
+
+        List<List<PointF>> screenPolygons = new ArrayList<>();
+        for (BuildingFootprint footprint : currentFootprints) {
+            for (List<Position> ring : footprint.getRings()) {
+                if (ring.isEmpty()) {
+                    continue;
+                }
+                RectF ringBounds = ringLatLngBounds(ring);
+                if (!BuildingFillView.intersectsVisibleBounds(ringBounds, visibleBounds)) {
+                    continue;
+                }
+                List<PointF> screenRing = new ArrayList<>(ring.size());
+                for (Position vertex : ring) {
+                    screenRing.add(map.getProjection().toScreenLocation(
+                            new LatLng(vertex.getLatitude(), vertex.getLongitude())));
+                }
+                screenPolygons.add(screenRing);
+            }
+        }
+        buildingFillView.setPolygons(screenPolygons);
+    }
+
+    private static RectF ringLatLngBounds(List<Position> ring) {
+        double west = Double.MAX_VALUE;
+        double east = -Double.MAX_VALUE;
+        double south = Double.MAX_VALUE;
+        double north = -Double.MAX_VALUE;
+        for (Position vertex : ring) {
+            west = Math.min(west, vertex.getLongitude());
+            east = Math.max(east, vertex.getLongitude());
+            south = Math.min(south, vertex.getLatitude());
+            north = Math.max(north, vertex.getLatitude());
+        }
+        // RectF(left, top, right, bottom) needs left<=right, top<=bottom numerically --
+        // west<=east and south<=north already satisfy that directly, no geographic
+        // meaning lost (RectF itself has no notion of lat/lng, just two ordered ranges).
+        return new RectF((float) west, (float) south, (float) east, (float) north);
     }
 
     /**

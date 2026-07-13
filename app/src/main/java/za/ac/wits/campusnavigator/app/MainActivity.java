@@ -12,6 +12,7 @@ import za.ac.wits.campusnavigator.domain.usecase.ComputeRouteUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.FindNearestCategoryPickUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingDetailsUseCase;
+import za.ac.wits.campusnavigator.domain.usecase.GetBuildingFootprintsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetBuildingsUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetCommonPickCategoriesUseCase;
 import za.ac.wits.campusnavigator.domain.usecase.GetDarkModePreferenceUseCase;
@@ -31,6 +32,7 @@ import za.ac.wits.campusnavigator.ui.map.HasComputeRouteUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasFindNearestCategoryPickUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetAccessibilityPreferenceUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingDetailsUseCase;
+import za.ac.wits.campusnavigator.ui.map.HasGetBuildingFootprintsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetBuildingsUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetCommonPickCategoriesUseCase;
 import za.ac.wits.campusnavigator.ui.map.HasGetDarkModePreferenceUseCase;
@@ -60,7 +62,7 @@ public final class MainActivity extends AppCompatActivity
         HasGetLandmarkPicksUseCase, HasBottomNavigation, HasGetCommonPickCategoriesUseCase,
         HasFindNearestCategoryPickUseCase, HasGetFavouritesUseCase, HasIsFavouriteUseCase,
         HasSaveFavouriteUseCase, HasRemoveFavouriteUseCase, HasGetDarkModePreferenceUseCase,
-        HasSetDarkModePreferenceUseCase {
+        HasSetDarkModePreferenceUseCase, HasGetBuildingFootprintsUseCase {
 
     private BottomNavigationView bottomNavView;
 
@@ -213,6 +215,11 @@ public final class MainActivity extends AppCompatActivity
     @Override
     public SetDarkModePreferenceUseCase getSetDarkModePreferenceUseCase() {
         return ((CampusNavigatorApplication) getApplication()).getSetDarkModePreferenceUseCase();
+    }
+
+    @Override
+    public GetBuildingFootprintsUseCase getGetBuildingFootprintsUseCase() {
+        return ((CampusNavigatorApplication) getApplication()).getGetBuildingFootprintsUseCase();
     }
 
     @Override

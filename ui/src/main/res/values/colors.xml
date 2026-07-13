@@ -14,4 +14,14 @@
         state. Not yet locked; see DESIGN.md#Colors and Story 1.1 AC 5.
     -->
     <color name="accent">#A0522D</color>
+
+    <!--
+        Story 6.3 (AC 4): building footprint fill, a muted warm tan in the same hue
+        family as the accent's own "Wits brick" brand language (DESIGN.md), deliberately
+        desaturated so it reads as a subordinate variant, not a second competing chromatic
+        color. #59C9A987 = C9A987 at 35% alpha (0x59), the exact opacity the WCAG audit in
+        the story's Dev Notes was computed against, not a placeholder value.
+    -->
+    <color name="building_fill">#59C9A987</color>
+    <color name="building_fill_stroke">#B08F68</color>
 </resources>

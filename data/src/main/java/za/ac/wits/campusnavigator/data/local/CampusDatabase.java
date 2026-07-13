@@ -17,7 +17,8 @@ import androidx.room.RoomDatabase;
  * Version 2 (Story 2.1) adds CategoryTag/BuildingCategoryCrossRef/BuildingPhoto. Version 3
  * (Story 2.2) adds Node/Edge (the walkway routing graph). Version 4 (Story 4.1) adds
  * Building.isLandmarkPick. Version 5 (Story 4.2) adds CategoryTag.isCommonPickCategory.
- * No Migration class -- this is a bundled, pre-release reference
+ * Version 6 (Story 6.3) adds BuildingFootprint (real-world polygon outlines, epic-6-scoping
+ * -2026-07-12.md §1). No Migration class -- this is a bundled, pre-release reference
  * dataset with no user-generated data to preserve, so a schema bump destructively rebuilds
  * it from the fresh bundled asset (Review Findings: fixes a real `IllegalStateException` on
  * any device with a prior version already installed, e.g. `adb install -r` without an
@@ -30,9 +31,10 @@ import androidx.room.RoomDatabase;
                 BuildingCategoryCrossRef.class,
                 BuildingPhotoEntity.class,
                 NodeEntity.class,
-                EdgeEntity.class
+                EdgeEntity.class,
+                BuildingFootprintEntity.class
         },
-        version = 5,
+        version = 6,
         exportSchema = false)
 public abstract class CampusDatabase extends RoomDatabase {
 
@@ -41,6 +43,8 @@ public abstract class CampusDatabase extends RoomDatabase {
     public abstract BuildingDao buildingDao();
 
     public abstract RoutingDao routingDao();
+
+    public abstract BuildingFootprintDao buildingFootprintDao();
 
     public static CampusDatabase getInstance(Context context) {
         if (instance == null) {

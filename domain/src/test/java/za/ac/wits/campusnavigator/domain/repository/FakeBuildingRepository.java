@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import za.ac.wits.campusnavigator.domain.model.Building;
 import za.ac.wits.campusnavigator.domain.model.BuildingDetails;
+import za.ac.wits.campusnavigator.domain.model.BuildingFootprint;
 import za.ac.wits.campusnavigator.domain.model.CategoryTag;
 
 /**
@@ -22,6 +23,7 @@ public final class FakeBuildingRepository implements BuildingRepository {
     private final List<Building> buildings;
     private final Map<String, List<Building>> buildingsByCategory;
     private final List<CategoryTag> commonPickCategories;
+    private final List<BuildingFootprint> footprints;
 
     public FakeBuildingRepository(List<Building> buildings) {
         this(buildings, Collections.emptyMap(), Collections.emptyList());
@@ -29,9 +31,18 @@ public final class FakeBuildingRepository implements BuildingRepository {
 
     public FakeBuildingRepository(List<Building> buildings, Map<String, List<Building>> buildingsByCategory,
                                    List<CategoryTag> commonPickCategories) {
+        // Story 6.3: no existing test needs custom footprint fixtures yet -- defaults to
+        // empty here, same "extend if a future story's tests need richer data" convention
+        // this class's own Javadoc already states for getBuildingDetails().
+        this(buildings, buildingsByCategory, commonPickCategories, Collections.emptyList());
+    }
+
+    public FakeBuildingRepository(List<Building> buildings, Map<String, List<Building>> buildingsByCategory,
+                                   List<CategoryTag> commonPickCategories, List<BuildingFootprint> footprints) {
         this.buildings = buildings;
         this.buildingsByCategory = buildingsByCategory;
         this.commonPickCategories = commonPickCategories;
+        this.footprints = footprints;
     }
 
     @Override
@@ -78,5 +89,10 @@ public final class FakeBuildingRepository implements BuildingRepository {
             }
         }
         return null;
+    }
+
+    @Override
+    public List<BuildingFootprint> getAllBuildingFootprints() {
+        return footprints;
     }
 }
