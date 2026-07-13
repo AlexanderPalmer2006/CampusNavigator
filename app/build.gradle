@@ -2,6 +2,32 @@ plugins {
     id 'com.android.application'
 }
 
+// Demo flavor (portfolio/visual-pitch artifact, NOT part of Epics 1-6 tracked scope --
+// see the "demo:" commit for the full rationale): reads a MapTiler API key from
+// local.properties (already gitignored -- see .gitignore's `/local.properties` and
+// `local.properties` entries) so the real key, once Alex has one, never touches git.
+//
+// ---> TO ADD A REAL KEY: open (or create) local.properties at the repo root and add a
+//      line: MAPTILER_API_KEY=your_real_key_here
+//
+// Missing/absent key defaults to "" so :app:assembleDebug and :app:assembleDemoDebug both
+// always succeed regardless of whether a key has been pasted in yet -- the demo flavor is
+// designed to degrade gracefully at runtime instead (see DemoCampusNavigatorApplication
+// and the generateDemoStyleAssets task below).
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+def mapTilerApiKey = localProperties.getProperty('MAPTILER_API_KEY', '')
+
+// The demo flavor's satellite style JSON is generated from a checked-in template (see
+// app/src/demo/assetsTemplate/) with the MAPTILER_API_KEY_PLACEHOLDER token replaced by
+// the real value above, written to a build/ output (already gitignored) -- never into a
+// tracked source directory, so a real key pasted into local.properties can never end up
+// committed via a generated file sitting under version control.
+def demoStyleOutputDir = layout.buildDirectory.dir("generated/assets/demoStyle")
+
 android {
     namespace 'za.ac.wits.campusnavigator.app'
     compileSdk 36
@@ -17,6 +43,47 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        // Only the demo flavor declares a buildConfigField (MAPTILER_API_KEY, below) --
+        // the production flavor's BuildConfig has no such field and nothing in the
+        // production/main source set ever references one, so this is purely additive.
+        buildConfig true
+    }
+
+    // First product flavor this app has ever had. `production` is the real, fully-offline,
+    // tracked-scope app (Epics 1-6) -- named explicitly (not left as an implicit
+    // no-flavor default) so its intent reads as clearly as `demo`'s right next to it.
+    // `demo` renders live MapTiler satellite imagery instead, for portfolio/visual-pitch
+    // use only -- see the demo: commit message for the full decision record.
+    flavorDimensions = ["distribution"]
+    productFlavors {
+        production {
+            dimension "distribution"
+        }
+        demo {
+            dimension "distribution"
+            // Distinct application ID/version so a demo build can be installed
+            // side-by-side with a production build on the same device for comparison --
+            // deliberate, not accidental (verification step of this feature).
+            applicationIdSuffix ".demo"
+            versionNameSuffix "-demo"
+            buildConfigField "String", "MAPTILER_API_KEY", "\"${mapTilerApiKey}\""
+        }
+    }
+
+    sourceSets {
+        demo {
+            // generateDemoStyleAssets (below) writes the real, key-substituted style JSON
+            // here; AGP merges it into the demo variant's assets, taking priority over
+            // ui/src/main/assets/style*.json (an app module's own assets always win over
+            // a library dependency's assets of the same relative path) -- so the
+            // production flavor's ui module assets are never touched and the demo
+            // flavor's MapFragment (unmodified, same class as production) transparently
+            // loads MapTiler satellite tiles instead of the offline vector basemap.
+            assets.srcDirs += demoStyleOutputDir.get().asFile
+        }
     }
 
     // Story 6.2: without this, AGP's default asset packaging DEFLATE-compresses
@@ -61,3 +128,27 @@ dependencies {
     implementation 'com.google.android.material:material:1.13.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
 }
+
+// Bakes mapTilerApiKey (read at the top of this file, from local.properties, "" if absent)
+// into app/src/demo/assetsTemplate/*.json, replacing the MAPTILER_API_KEY_PLACEHOLDER
+// token, writing the result into demoStyleOutputDir (a sourceSets.demo assets.srcDirs
+// entry declared above) rather than editing the template in place -- the template itself
+// (with the literal placeholder token, never a real key) is the only one of the two that's
+// ever git-tracked. If mapTilerApiKey is "" (no key pasted in yet), the generated style
+// JSON's tile URL simply ends in "key=" -- MapTiler will reject those tile requests (401),
+// so the demo flavor's map renders a plain blank/background tile area with no crash, and
+// DemoCampusNavigatorApplication logs one line pointing back at this file's instructions.
+tasks.register("generateDemoStyleAssets", Copy) {
+    from("src/demo/assetsTemplate")
+    into(demoStyleOutputDir)
+    filteringCharset = "UTF-8"
+    filter { line -> line.replace("MAPTILER_API_KEY_PLACEHOLDER", mapTilerApiKey) }
+}
+
+// AGP creates its merge-assets tasks (mergeDemoDebugAssets, mergeDemoReleaseAssets, ...)
+// dynamically per variant; this task-name match (rather than depending on one hardcoded
+// variant name) wires generateDemoStyleAssets ahead of every one of them, demo or not --
+// harmless no-op wiring for non-demo variants since the `matching {}` predicate itself
+// excludes them.
+tasks.matching { it.name.startsWith("merge") && it.name.contains("Demo") && it.name.endsWith("Assets") }
+        .configureEach { dependsOn "generateDemoStyleAssets" }

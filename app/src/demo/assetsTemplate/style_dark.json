@@ -1,0 +1,31 @@
+{
+  "version": 8,
+  "name": "Campus Navigator Demo -- MapTiler Satellite (Online, Dark Mode)",
+  "sources": {
+    "maptiler-satellite": {
+      "type": "raster",
+      "tiles": [
+        "https://api.maptiler.com/tiles/satellite-v4/{z}/{x}/{y}.jpg?key=MAPTILER_API_KEY_PLACEHOLDER"
+      ],
+      "tileSize": 256,
+      "minzoom": 0,
+      "maxzoom": 20,
+      "bounds": [28.0195, -26.1945, 28.0338, -26.1835],
+      "attribution": "© MapTiler © OpenStreetMap contributors"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#3A382F"
+      }
+    },
+    {
+      "id": "maptiler-satellite-layer",
+      "type": "raster",
+      "source": "maptiler-satellite"
+    }
+  ]
+}

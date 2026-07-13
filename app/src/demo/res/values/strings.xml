@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Demo flavor only (portfolio/visual-pitch artifact, not tracked product scope, see
+    app/build.gradle's top comment). Every string here either exists ONLY in this file
+    (demo_banner_*, never referenced or reachable from a production build) or overrides a
+    same-named string: an app-module resource of this name always wins over its equivalent
+    in a library dependency (here, ui/src/main/res/values/strings.xml) for the variant it's
+    merged into, so map_attribution below replaces the OSM-only credit with the
+    MapTiler+OSM credit MapTiler's terms require, for the demo variant's merged resources
+    only; ui's own string.xml, and the production flavor's resolved value, are untouched.
+-->
+<resources>
+    <string name="map_attribution">© MapTiler © OpenStreetMap contributors</string>
+
+    <string name="demo_banner_text">Demo build — online satellite imagery for visualization only. The real app is fully offline.</string>
+    <string name="demo_banner_content_description">Demo build notice: online satellite imagery for visualization only. The real Campus Navigator app is fully offline.</string>
+</resources>

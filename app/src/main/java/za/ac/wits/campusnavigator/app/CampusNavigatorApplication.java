@@ -57,8 +57,16 @@ import za.ac.wits.campusnavigator.ui.map.MapLibreInitializer;
  * Manual DI composition root (ARCHITECTURE-SPINE.md AD-10) -- no Dagger/Hilt. The full
  * dependency graph is constructed here, by hand, in one file. Later stories add their own
  * wiring to this same class; keep it minimal, only what the current epic's stories need.
+ *
+ * <p>Not {@code final} (portfolio demo-flavor addition, outside tracked product scope --
+ * see app/build.gradle's top comment): the {@code demo} product flavor's
+ * {@code DemoCampusNavigatorApplication} (app/src/demo/java/.../DemoCampusNavigatorApplication.java)
+ * extends this class so it can reuse this exact DI graph unchanged instead of duplicating
+ * it. This is the only change made to this file for that feature -- removing {@code final}
+ * cannot itself alter runtime behavior, and nothing in the production flavor's compiled
+ * sources subclasses it.</p>
  */
-public final class CampusNavigatorApplication extends Application
+public class CampusNavigatorApplication extends Application
         implements HasGetBuildingsUseCase, HasLocationProvider, HasSearchBuildingsUseCase,
         HasGetBuildingDetailsUseCase, HasComputeRouteUseCase, HasGetAccessibilityPreferenceUseCase,
         HasSetAccessibilityPreferenceUseCase, HasGetLandmarkPicksUseCase, HasGetCommonPickCategoriesUseCase,

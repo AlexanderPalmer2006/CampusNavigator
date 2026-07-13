@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Demo flavor only (portfolio/visual-pitch artifact, not tracked product scope, see
+    app/build.gradle's top comment and the "demo:" commit message). Merged over
+    app/src/main/AndroidManifest.xml for demo variants only.
+
+    INTERNET / ACCESS_NETWORK_STATE are already declared in ui/src/main/AndroidManifest.xml
+    for both flavors (MapLibre requires them present regardless of whether an app actually
+    uses them, see that file's own comment, Story 1.1), so nothing extra is needed here
+    for live MapTiler tile fetching.
+
+    Swaps in DemoCampusNavigatorApplication (adds one graceful-degradation log line on top
+    of the real CampusNavigatorApplication wiring) and relabels the launcher entry so a
+    demo build installed alongside a production build is visually distinguishable.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:name=".DemoCampusNavigatorApplication"
+        android:label="Campus Navigator (Demo)"
+        tools:replace="android:name,label" />
+
+</manifest>
