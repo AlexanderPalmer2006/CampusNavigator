@@ -1,13 +1,60 @@
 {
   "version": 8,
   "name": "Campus Navigator Offline Base (Dark Mode)",
-  "sources": {},
+  "sources": {
+    "campus-tiles": {
+      "type": "vector",
+      "tiles": ["asset://tiles/{z}/{x}/{y}.pbf"],
+      "minzoom": 14,
+      "maxzoom": 18
+    }
+  },
   "layers": [
     {
       "id": "background",
       "type": "background",
       "paint": {
         "background-color": "#1C1B1A"
+      }
+    },
+    {
+      "id": "landcover-fill",
+      "type": "fill",
+      "source": "campus-tiles",
+      "source-layer": "landcover",
+      "paint": {
+        "fill-color": [
+          "match",
+          ["get", "kind"],
+          "water",
+          "#1F3A46",
+          ["grass", "pitch", "sports_centre", "golf_course", "garden", "recreation_ground", "cemetery"],
+          "#26331F",
+          "#2A2820"
+        ],
+        "fill-opacity": 0.6
+      }
+    },
+    {
+      "id": "roads-line",
+      "type": "line",
+      "source": "campus-tiles",
+      "source-layer": "roads",
+      "paint": {
+        "line-color": [
+          "match",
+          ["get", "class"],
+          ["footway", "path", "steps", "cycleway"],
+          "#6E6558",
+          "#8A8067"
+        ],
+        "line-width": [
+          "match",
+          ["get", "class"],
+          ["footway", "path", "steps", "cycleway"],
+          1.5,
+          2.5
+        ]
       }
     }
   ]

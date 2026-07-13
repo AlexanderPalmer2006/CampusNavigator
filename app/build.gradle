@@ -19,6 +19,23 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    // Story 6.2: without this, AGP's default asset packaging DEFLATE-compresses
+    // ui/src/main/assets/tiles/**/*.pbf into the APK (confirmed via `unzip -v` on a real
+    // built APK: "Defl:N" entries) same as any other unlisted-extension asset. MapLibre's
+    // native tile loader opens asset:// tile URLs via a raw file descriptor for zero-copy
+    // reads, which only works against a *stored* (uncompressed) zip entry -- against a
+    // compressed one it silently returns no tile data, no exception, no logcat error (found
+    // via a real on-device run: building labels rendered, but no road lines or terrain fills
+    // ever appeared, with nothing in logcat pointing at the cause). This is a standard,
+    // widely-documented Android/MapLibre gotcha for any bundled binary tile asset, not
+    // specific to this app's own code. `campus.db` and `style*.json` are unaffected --
+    // `.db` is already on Android's own default no-compress extension list, and the two
+    // small `style*.json` files are loaded by MapLibre through its ordinary (non-mmap)
+    // asset-streaming path, not the tile-mmap path.
+    androidResources {
+        noCompress "pbf"
+    }
+
     buildTypes {
         release {
             minifyEnabled false
