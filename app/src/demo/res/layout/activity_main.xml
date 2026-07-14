@@ -51,6 +51,27 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- MapTiler's free-plan terms require displaying their logo (not just text
+         attribution), linking to maptiler.com. See the logo commit message for the
+         source (https://api.maptiler.com/resources/logo.svg, rasterized per-density,
+         never hand-redrawn) and requirement citation. Positioned bottom-left over the
+         map area, echoing MapTiler's own web-SDK placement example. Click handling is
+         wired from DemoCampusNavigatorApplication via registerActivityLifecycleCallbacks
+         rather than touching MainActivity.java, so this feature makes zero changes to
+         any shared/production source file. -->
+    <ImageView
+        android:id="@+id/maptilerLogo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginBottom="10dp"
+        android:padding="4dp"
+        android:src="@drawable/maptiler_logo"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/maptiler_logo_content_description"
+        app:layout_constraintStart_toStartOf="@id/fragmentContainer"
+        app:layout_constraintBottom_toBottomOf="@id/fragmentContainer" />
+
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNav"
         android:layout_width="0dp"
