@@ -139,6 +139,14 @@ dependencies {
 // so the demo flavor's map renders a plain blank/background tile area with no crash, and
 // DemoCampusNavigatorApplication logs one line pointing back at this file's instructions.
 tasks.register("generateDemoStyleAssets", Copy) {
+    // Gradle's up-to-date check only sees this task's declared inputs (the template
+    // files) and outputs -- it has no way to know the filter{} closure below reads an
+    // external mapTilerApiKey variable. Without this explicit declaration, pasting a
+    // real key into local.properties after a first (empty-key) build silently does
+    // nothing: the task is considered UP-TO-DATE (template unchanged, output already
+    // exists) and never reruns, leaving the stale empty-key style JSON in place. Found
+    // the hard way -- confirmed via a real second build after adding a key.
+    inputs.property("mapTilerApiKey", mapTilerApiKey)
     from("src/demo/assetsTemplate")
     into(demoStyleOutputDir)
     filteringCharset = "UTF-8"
