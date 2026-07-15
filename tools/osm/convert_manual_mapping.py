@@ -96,6 +96,22 @@ def existing_nodes():
     return rows
 
 
+def existing_edge_pairs():
+    """(min_id, max_id) for every Edge already in campus.db -- undirected, same convention
+    AStarRouter/convert_walkways.py already use. Prevents re-running this script against a
+    GeoJSON export that re-traces (in full or in part) an already-applied mapping session
+    from inserting duplicate edges between the same two nodes -- a real, observed case:
+    exporting again mid-session from geojson.io naturally re-includes everything drawn so
+    far, not just what's new since the last export."""
+    import sqlite3
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT from_node_id, to_node_id FROM Edge")
+    pairs = {(min(a, b), max(a, b)) for a, b in cur.fetchall()}
+    conn.close()
+    return pairs
+
+
 class NodeAllocator:
     """Assigns local ids to new line vertices, snapping to existing or already-allocated
     nodes within SNAP_DISTANCE_METERS rather than always creating a new one."""
@@ -119,23 +135,29 @@ class NodeAllocator:
         return nid
 
 
-def process_linestring(feature, node_alloc, edge_id_start):
+def process_linestring(feature, node_alloc, edge_id_start, seen_pairs):
     coords = feature["geometry"]["coordinates"]  # [[lon, lat], ...]
     is_stairs = 1 if feature.get("properties", {}).get("is_stairs") else 0
     edge_sql = []
     edge_id = edge_id_start
     prev_node_id = None
+    skipped_duplicates = 0
     for lon, lat in coords:
         node_id = node_alloc.get_or_create(lat, lon)
         if prev_node_id is not None and prev_node_id != node_id:
-            dist = haversine_m(*_latlon(node_alloc, prev_node_id), *_latlon(node_alloc, node_id))
-            edge_sql.append(
-                "INSERT INTO Edge (id, from_node_id, to_node_id, distance_meters, is_stairs) "
-                f"VALUES ({edge_id}, {prev_node_id}, {node_id}, {dist:.2f}, {is_stairs});"
-            )
-            edge_id += 1
+            pair = (min(prev_node_id, node_id), max(prev_node_id, node_id))
+            if pair in seen_pairs:
+                skipped_duplicates += 1
+            else:
+                seen_pairs.add(pair)
+                dist = haversine_m(*_latlon(node_alloc, prev_node_id), *_latlon(node_alloc, node_id))
+                edge_sql.append(
+                    "INSERT INTO Edge (id, from_node_id, to_node_id, distance_meters, is_stairs) "
+                    f"VALUES ({edge_id}, {prev_node_id}, {node_id}, {dist:.2f}, {is_stairs});"
+                )
+                edge_id += 1
         prev_node_id = node_id
-    return edge_sql, edge_id
+    return edge_sql, edge_id, skipped_duplicates
 
 
 def _latlon(node_alloc, node_id):
@@ -214,6 +236,7 @@ def main():
     edge_id = max_ids["Edge"] + 1
     building_id = max_ids["Building"] + 1
     footprint_id = max_ids["BuildingFootprint"] + 1
+    seen_pairs = existing_edge_pairs()
 
     all_edge_sql = []
     all_building_sql = []
@@ -221,12 +244,14 @@ def main():
     summary_paths = 0
     summary_buildings = []
     warnings = []
+    total_skipped_duplicates = 0
 
     for feature in features:
         geom_type = feature.get("geometry", {}).get("type")
         if geom_type == "LineString":
-            edge_sql, edge_id = process_linestring(feature, node_alloc, edge_id)
+            edge_sql, edge_id, skipped = process_linestring(feature, node_alloc, edge_id, seen_pairs)
             all_edge_sql.extend(edge_sql)
+            total_skipped_duplicates += skipped
             summary_paths += 1
         elif geom_type == "Polygon":
             result, warning = process_polygon(feature, building_id, footprint_id)
@@ -269,6 +294,9 @@ def main():
 
     print(f"New Nodes: {len(node_alloc.new_node_sql)}")
     print(f"New Edges: {len(all_edge_sql)}  (from {summary_paths} drawn path(s))")
+    if total_skipped_duplicates:
+        print(f"Skipped {total_skipped_duplicates} edge(s) already present in campus.db "
+              f"(same node pair, likely re-exported from an earlier mapping session)")
     print(f"New Buildings: {len(summary_buildings)}")
     for b in summary_buildings:
         print(f"  - {b}")
