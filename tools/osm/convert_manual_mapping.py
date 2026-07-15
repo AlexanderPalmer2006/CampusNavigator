@@ -29,6 +29,15 @@ In geojson.io (https://geojson.io, satellite basemap toggle bottom-left) or uMap
 - **An unlabeled building you don't want to trace the outline of**: draw a *Point*
   instead, with a `name` property -- creates a `Building` row only, no footprint fill
   (same as FNB Building/Robert Sobukwe Block today).
+- **A mislabeled or wrongly-positioned EXISTING building** (e.g. FNB Building/Robert
+  Sobukwe Block, which never got a real OSM match in Story 6.1 and still sit at their
+  original placeholder coordinates with no outline): draw a Polygon or Point the same
+  way, but add a `correct_building_id` property set to that Building's existing numeric
+  id (run `sqlite3 campus.db "SELECT id, name FROM Building"` to look them up). This
+  UPDATEs the existing Building row's name/position in place (never creates a duplicate)
+  and, for a Polygon, replaces any existing footprint for that building with the newly
+  traced one -- correcting AC 3's "no footprint" gap, not adding a second building on
+  top of the first.
 
 Optional properties on a Polygon or Point: `code`, `faculty_department`.
 
@@ -189,18 +198,36 @@ def process_polygon(feature, building_id, footprint_id):
     code_sql = f"'{code}'" if code else "NULL"
     faculty_sql = f"'{faculty}'" if faculty else "NULL"
     name_escaped = name.replace("'", "''")
+    ring_geojson = json.dumps(coords[0])  # exact [[lon,lat],...] shape parseRing() expects
+    ring_geojson_escaped = ring_geojson.replace("'", "''")
+
+    correct_id = props.get("correct_building_id")
+    if correct_id is not None:
+        building_sql = (
+            f"UPDATE Building SET name = '{name_escaped}', latitude = {lat}, "
+            f"longitude = {lon}, code = {code_sql}, faculty_department = {faculty_sql} "
+            f"WHERE id = {correct_id};"
+        )
+        # Replace, not add to, any existing footprint for this Building -- a correction
+        # means the old outline (or lack of one) is wrong, not that this is a second ring
+        # of a genuinely multi-polygon building.
+        delete_sql = f"DELETE FROM BuildingFootprint WHERE building_id = {correct_id};"
+        footprint_sql = (
+            "INSERT INTO BuildingFootprint (id, building_id, ring_geojson) VALUES "
+            f"({footprint_id}, {correct_id}, '{ring_geojson_escaped}');"
+        )
+        return (building_sql, delete_sql, footprint_sql, f"{name} (corrected)"), None
+
     building_sql = (
         "INSERT INTO Building (id, name, latitude, longitude, campus_id, code, "
         "faculty_department, is_landmark_pick) VALUES "
         f"({building_id}, '{name_escaped}', {lat}, {lon}, 'wits-main', {code_sql}, {faculty_sql}, 0);"
     )
-    ring_geojson = json.dumps(coords[0])  # exact [[lon,lat],...] shape parseRing() expects
-    ring_geojson_escaped = ring_geojson.replace("'", "''")
     footprint_sql = (
         "INSERT INTO BuildingFootprint (id, building_id, ring_geojson) VALUES "
         f"({footprint_id}, {building_id}, '{ring_geojson_escaped}');"
     )
-    return (building_sql, footprint_sql, name), None
+    return (building_sql, None, footprint_sql, name), None
 
 
 def process_point(feature, building_id):
@@ -214,6 +241,16 @@ def process_point(feature, building_id):
     code_sql = f"'{code}'" if code else "NULL"
     faculty_sql = f"'{faculty}'" if faculty else "NULL"
     name_escaped = name.replace("'", "''")
+
+    correct_id = props.get("correct_building_id")
+    if correct_id is not None:
+        building_sql = (
+            f"UPDATE Building SET name = '{name_escaped}', latitude = {lat}, "
+            f"longitude = {lon}, code = {code_sql}, faculty_department = {faculty_sql} "
+            f"WHERE id = {correct_id};"
+        )
+        return (building_sql, f"{name} (corrected)"), None
+
     building_sql = (
         "INSERT INTO Building (id, name, latitude, longitude, campus_id, code, "
         "faculty_department, is_landmark_pick) VALUES "
@@ -240,9 +277,11 @@ def main():
 
     all_edge_sql = []
     all_building_sql = []
+    all_delete_sql = []
     all_footprint_sql = []
     summary_paths = 0
     summary_buildings = []
+    summary_corrections = []
     warnings = []
     total_skipped_duplicates = 0
 
@@ -258,11 +297,15 @@ def main():
             if warning:
                 warnings.append(warning)
                 continue
-            building_sql, footprint_sql, name = result
+            building_sql, delete_sql, footprint_sql, name = result
             all_building_sql.append(building_sql)
+            if delete_sql:
+                all_delete_sql.append(delete_sql)
+                summary_corrections.append(name)
+            else:
+                summary_buildings.append(f"{name} (outlined)")
+                building_id += 1
             all_footprint_sql.append(footprint_sql)
-            summary_buildings.append(f"{name} (outlined)")
-            building_id += 1
             footprint_id += 1
         elif geom_type == "Point":
             result, warning = process_point(feature, building_id)
@@ -271,8 +314,11 @@ def main():
                 continue
             building_sql, name = result
             all_building_sql.append(building_sql)
-            summary_buildings.append(f"{name} (point only)")
-            building_id += 1
+            if "(corrected)" in name:
+                summary_corrections.append(name)
+            else:
+                summary_buildings.append(f"{name} (point only)")
+                building_id += 1
         else:
             warnings.append(f"Unsupported geometry type '{geom_type}' -- skipped.")
 
@@ -280,13 +326,16 @@ def main():
     out_path = os.path.join(OUT_DIR, "manual_mapping_reseed.sql")
     with open(out_path, "w") as f:
         f.write(f"-- Generated by tools/osm/convert_manual_mapping.py from {os.path.basename(geojson_path)}\n")
-        f.write("-- Additive only -- does not touch any existing Node/Edge/Building/BuildingFootprint row.\n")
+        f.write("-- Node/Edge/new-Building rows are additive only. Any 'correct_building_id'\n")
+        f.write("-- feature UPDATEs that existing Building row and replaces its footprint.\n")
         f.write("BEGIN TRANSACTION;\n")
         for line in node_alloc.new_node_sql:
             f.write(line + "\n")
         for line in all_edge_sql:
             f.write(line + "\n")
         for line in all_building_sql:
+            f.write(line + "\n")
+        for line in all_delete_sql:
             f.write(line + "\n")
         for line in all_footprint_sql:
             f.write(line + "\n")
@@ -300,6 +349,10 @@ def main():
     print(f"New Buildings: {len(summary_buildings)}")
     for b in summary_buildings:
         print(f"  - {b}")
+    if summary_corrections:
+        print(f"Corrected Buildings: {len(summary_corrections)}")
+        for c in summary_corrections:
+            print(f"  - {c}")
     if warnings:
         print("Warnings:")
         for w in warnings:
