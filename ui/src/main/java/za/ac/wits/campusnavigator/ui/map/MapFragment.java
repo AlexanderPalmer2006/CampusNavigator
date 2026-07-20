@@ -104,10 +104,12 @@ public final class MapFragment extends Fragment {
     private static final class LabelView {
         final LatLng position;
         final TextView view;
+        final Building building;
 
-        LabelView(LatLng position, TextView view) {
+        LabelView(LatLng position, TextView view, Building building) {
             this.position = position;
             this.view = view;
+            this.building = building;
         }
     }
 
@@ -385,7 +387,7 @@ public final class MapFragment extends Fragment {
             label.setVisibility(View.INVISIBLE);
             labelOverlay.addView(label, new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            labelViews.add(new LabelView(position, label));
+            labelViews.add(new LabelView(position, label, building));
         }
 
         // Without this, the map's default camera (0,0 / zoom 0) never shows the Wits
@@ -530,11 +532,63 @@ public final class MapFragment extends Fragment {
             PointF screenPoint = map.getProjection().toScreenLocation(labelView.position);
             labelView.view.setX(screenPoint.x);
             labelView.view.setY(screenPoint.y);
-            labelView.view.setVisibility(View.VISIBLE);
         }
+        declutterLabels();
         repositionLocationMarker();
         repositionRouteLine();
         repositionBuildingFills();
+    }
+
+    /**
+     * Hides (GONE, not just invisible -- a decluttered label must not stay tappable at a
+     * spot that looks empty) whichever labels visually overlap a higher-priority label
+     * already placed. This screen's original design (Story 1.1) never needed this: 5
+     * sparse seed Buildings never collided. Real building growth (Epic 6+, now 22
+     * Buildings in a campus-scale-dense cluster) does. Landmark Picks
+     * ({@code Building.isLandmarkPick}) are never hidden -- they're this app's own
+     * curated "most important" destinations (Epic 4) -- everything else defers to
+     * whichever labels get placed first, in stable ascending-id order so the same label
+     * wins on every call rather than flickering between frames.
+     *
+     * <p>Relies on each label {@code TextView}'s already-measured {@code getWidth()}/
+     * {@code getHeight()} -- zero on the very first call before this Fragment's view
+     * hierarchy has been laid out even once, which harmlessly resolves to "nothing
+     * overlaps yet" (a zero-size rect never intersects another) until the next real
+     * camera idle/move event supplies real dimensions, the same one-frame tolerance
+     * {@link #renderBuildingLabels}'s own {@code INVISIBLE}-until-first-placement
+     * comment already accepts for a related reason.</p>
+     */
+    private void declutterLabels() {
+        List<LabelView> priorityOrdered = new ArrayList<>(labelViews);
+        priorityOrdered.sort((a, b) -> {
+            boolean aLandmark = a.building.isLandmarkPick();
+            boolean bLandmark = b.building.isLandmarkPick();
+            if (aLandmark != bLandmark) {
+                return aLandmark ? -1 : 1;
+            }
+            return Long.compare(a.building.getId(), b.building.getId());
+        });
+
+        List<RectF> placedBounds = new ArrayList<>(priorityOrdered.size());
+        for (LabelView labelView : priorityOrdered) {
+            TextView view = labelView.view;
+            RectF bounds = new RectF(view.getX(), view.getY(),
+                    view.getX() + view.getWidth(), view.getY() + view.getHeight());
+
+            boolean overlapsAnyPlaced = false;
+            for (RectF placed : placedBounds) {
+                if (RectF.intersects(bounds, placed)) {
+                    overlapsAnyPlaced = true;
+                    break;
+                }
+            }
+            if (overlapsAnyPlaced) {
+                view.setVisibility(View.GONE);
+            } else {
+                view.setVisibility(View.VISIBLE);
+                placedBounds.add(bounds);
+            }
+        }
     }
 
     /**
