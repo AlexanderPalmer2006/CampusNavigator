@@ -187,19 +187,32 @@ def polygon_centroid(rings):
 
 def process_polygon(feature, building_id, footprint_id):
     props = feature.get("properties", {})
+    coords = feature["geometry"]["coordinates"]  # [[[lon,lat],...]] (outer ring [0])
+    ring_geojson = json.dumps(coords[0])  # exact [[lon,lat],...] shape parseRing() expects
+    ring_geojson_escaped = ring_geojson.replace("'", "''")
+
+    add_ring_id = props.get("add_ring_to_building_id")
+    if add_ring_id is not None:
+        # A second (or third...) real ring for a Building that already has the right
+        # name/position -- e.g. Barnato Hall is genuinely two separate OSM polygons (a
+        # hall building and a residence block) sharing one name. Touches only
+        # BuildingFootprint; the Building row itself is untouched.
+        footprint_sql = (
+            "INSERT INTO BuildingFootprint (id, building_id, ring_geojson) VALUES "
+            f"({footprint_id}, {add_ring_id}, '{ring_geojson_escaped}');"
+        )
+        return (None, None, footprint_sql, f"building id {add_ring_id} (added ring)"), None
+
     name = props.get("name")
     if not name:
         return None, "Polygon feature has no 'name' property -- skipped (every new " \
                       "Building needs a name to be searchable/identifiable)."
-    coords = feature["geometry"]["coordinates"]  # [[[lon,lat],...]] (outer ring [0])
     lat, lon = polygon_centroid(coords)
     code = props.get("code")
     faculty = props.get("faculty_department")
     code_sql = f"'{code}'" if code else "NULL"
     faculty_sql = f"'{faculty}'" if faculty else "NULL"
     name_escaped = name.replace("'", "''")
-    ring_geojson = json.dumps(coords[0])  # exact [[lon,lat],...] shape parseRing() expects
-    ring_geojson_escaped = ring_geojson.replace("'", "''")
 
     correct_id = props.get("correct_building_id")
     if correct_id is not None:
@@ -298,13 +311,16 @@ def main():
                 warnings.append(warning)
                 continue
             building_sql, delete_sql, footprint_sql, name = result
-            all_building_sql.append(building_sql)
-            if delete_sql:
-                all_delete_sql.append(delete_sql)
-                summary_corrections.append(name)
+            if building_sql is None:
+                summary_corrections.append(name)  # add-ring case: no Building row change
             else:
-                summary_buildings.append(f"{name} (outlined)")
-                building_id += 1
+                all_building_sql.append(building_sql)
+                if delete_sql:
+                    all_delete_sql.append(delete_sql)
+                    summary_corrections.append(name)
+                else:
+                    summary_buildings.append(f"{name} (outlined)")
+                    building_id += 1
             all_footprint_sql.append(footprint_sql)
             footprint_id += 1
         elif geom_type == "Point":

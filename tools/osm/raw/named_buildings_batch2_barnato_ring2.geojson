@@ -1,0 +1,1 @@
+{"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"add_ring_to_building_id": 22}, "geometry": {"type": "Polygon", "coordinates": [[[28.0251281, -26.1873412], [28.0248373, -26.1873778], [28.0248491, -26.1874442], [28.0251377, -26.1874124], [28.0251281, -26.1873412]]]}}]}
