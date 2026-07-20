@@ -370,6 +370,21 @@ public final class MapFragment extends Fragment {
             label.setText(building.getName());
             label.setTextSize(12f);
             label.setTextColor(getResources().getColor(R.color.ink_primary, requireContext().getTheme()));
+            // A flat ink_primary label reads fine against this app's own offline vector
+            // basemap (Story 1.1/6.2's flat terrain fills), but the demo flavor's live
+            // satellite imagery is photographic and unpredictable underneath every label
+            // -- dark roofs, shadows, bright concrete -- so a fixed dark text color alone
+            // isn't reliably legible everywhere. A halo (soft glow in surface_base, this
+            // theme's own already-defined opposite of ink_primary in both light and dark
+            // mode -- light halo behind dark text, dark halo behind light text,
+            // automatically) keeps the label readable regardless of what's underneath,
+            // the same principle real map cartography has always used for label legibility
+            // over unpredictable imagery -- a functional legibility aid, not the
+            // decorative drop-shadow DESIGN.md's tonal-elevation-only rule (UX-DR4)
+            // actually governs (that rule is about UI chrome elevation, not text-over-
+            // imagery contrast).
+            label.setShadowLayer(dpToPx(3f), 0, 0,
+                    getResources().getColor(R.color.surface_base, requireContext().getTheme()));
             // AC 4 (Story 2.1): map-pin tap also opens the Building Info Page. Tap target
             // stretched to 48dp minimum in both dimensions (DESIGN.md: "never smaller than
             // 48dp regardless of visual size") via minHeight/minWidth + vertical centering
